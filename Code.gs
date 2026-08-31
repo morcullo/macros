@@ -12,6 +12,7 @@
 const STATE_SHEET = 'AppState';
 const MEALS_SHEET = 'Meals';
 const FOODS_SHEET = 'Food Items';
+const FOOD_LIBRARY_SHEET = 'Food Library';
 const WEIGHT_SHEET = 'Weight';
 const GOALS_SHEET = 'Goals';
 
@@ -23,14 +24,26 @@ function doGet(e) {
 }
 
 function doPost(e) {
+  const lock = LockService.getScriptLock();
   try {
     const raw = e && e.parameter && e.parameter.state;
     if (!raw) throw new Error('Missing state');
-    const state = JSON.parse(raw);
-    writeState_(state);
-    return json_({ok:true});
+    const incoming = JSON.parse(raw);
+    lock.waitLock(10000);
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const existing = readState_();
+    const incomingStamp = Number(incoming && incoming._updatedAt || 0);
+    const existingStamp = Number(existing && existing._updatedAt || 0);
+    // Never let an older browser overwrite a newer cloud copy.
+    if (!existing.__empty && existingStamp > incomingStamp) {
+      return json_({ok:true, ignored:true, updatedAt:existingStamp});
+    }
+    writeState_(incoming);
+    return json_({ok:true, updatedAt:incomingStamp});
   } catch (err) {
     return json_({ok:false, error:String(err)});
+  } finally {
+    try { lock.releaseLock(); } catch (_) {}
   }
 }
 
@@ -57,6 +70,7 @@ function writeState_(state) {
 
   writeMeals_(ss, state.meals || []);
   writeFoods_(ss, state.meals || []);
+  writeFoodLibrary_(ss, state.foodLibrary || []);
   writeWeights_(ss, state.weights || []);
   writeGoals_(ss, state.goals || {});
 }
@@ -78,6 +92,22 @@ function writeFoods_(ss, meals) {
   meals.forEach(m => (m.items || []).forEach(i => rows.push([m.id || '', m.name || '', i.name || '', +i.calories || 0, +i.protein || 0, +i.carbs || 0, +i.fat || 0])));
   sh.getRange(1,1,rows.length,rows[0].length).setValues(rows); sh.getRange(1,1,1,rows[0].length).setFontWeight('bold');
   sh.setFrozenRows(1); sh.autoResizeColumns(1, rows[0].length);
+}
+
+
+function writeFoodLibrary_(ss, foods) {
+  const sh = getOrCreate_(ss, FOOD_LIBRARY_SHEET); sh.clearContents();
+  const seen = new Set();
+  const rows = [['Food','Carbs','Protein','Fat','Calories']];
+  (foods || []).forEach(i => {
+    const name = String(i.name || '').trim();
+    const key = name.toLowerCase();
+    if (!name || seen.has(key)) return;
+    seen.add(key);
+    rows.push([name, +i.carbs || 0, +i.protein || 0, +i.fat || 0, +i.calories || 0]);
+  });
+  sh.getRange(1,1,rows.length,5).setValues(rows); sh.getRange(1,1,1,5).setFontWeight('bold');
+  sh.setFrozenRows(1); sh.autoResizeColumns(1,5);
 }
 
 function writeWeights_(ss, weights) {

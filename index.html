@@ -95,6 +95,18 @@
     .meals-toolbar{display:flex;gap:10px;margin:22px 0 15px}.search{flex:1;background:var(--panel);border:1px solid var(--line);color:var(--text);border-radius:14px;padding:12px 14px;outline:none}.filter{appearance:none;-webkit-appearance:none;background-color:var(--panel);background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23f6f4f1' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 20px center;background-size:12px 12px;border:1px solid var(--line);color:var(--text);border-radius:14px;padding:0 40px 0 14px;min-width:150px;outline:none}.filter:focus{border-color:var(--orange)}
     .full-meals{background:var(--panel);border:1px solid var(--line);border-radius:22px;padding:0 20px}
     .meal-detail{display:grid;grid-template-columns:62px minmax(0,1fr) auto auto;gap:15px;align-items:center;padding:16px 0;border-bottom:1px solid var(--line)}.meal-detail:last-child{border-bottom:0}.meal-detail .macros{display:flex;gap:12px;color:var(--muted);font-size:12px}.meal-detail .macros b{color:var(--text)}
+    .meal-type-summary{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+    .meal-type-summary-card{position:relative;min-width:0;aspect-ratio:1 / 1;border:1px solid var(--line);border-radius:22px;background:var(--panel);padding:18px;display:flex;flex-direction:column;justify-content:space-between;text-align:left;color:var(--text);cursor:pointer;overflow:hidden;transition:transform .15s ease,background .15s ease,border-color .15s ease}
+    .meal-type-summary-card:hover{background:#201f1c;border-color:#4a453e;transform:translateY(-1px)}
+    .meal-type-summary-card::after{content:"";position:absolute;width:86px;height:86px;border-radius:50%;background:rgba(255,184,28,.045);right:-22px;top:-22px;pointer-events:none}
+    .meal-type-summary-top{display:flex;align-items:center;justify-content:space-between;gap:10px;position:relative;z-index:1}
+    .meal-type-summary-icon{width:44px;height:44px;border-radius:14px;background:#2a2926;color:var(--orange);display:grid;place-items:center;flex:0 0 44px}.meal-type-summary-icon svg{width:24px;height:24px}
+    .meal-type-summary-name{font-size:16px;font-weight:800;text-transform:capitalize}
+    .meal-type-summary-count{font-size:11px;color:var(--muted);margin-top:3px}
+    .meal-type-summary-cal{font-size:24px;font-weight:850;letter-spacing:-.4px;position:relative;z-index:1}.meal-type-summary-cal span{font-size:12px;color:var(--muted);font-weight:700;letter-spacing:0}
+    .meal-type-summary-macros{display:flex;gap:9px;flex-wrap:wrap;font-size:11px;color:var(--muted);position:relative;z-index:1}.meal-type-summary-macros b{color:var(--text)}
+    .type-meals-list{display:flex;flex-direction:column;gap:0}.type-meals-list .meal-row{padding:13px 0}.type-meals-list .meal-row:last-child{border-bottom:0}
+    .meal-type-modal-meta{color:var(--muted);font-size:12px;margin-top:-8px;margin-bottom:14px}
     .empty{padding:35px;text-align:center;color:var(--muted)}
     .modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.72);backdrop-filter:blur(7px);display:none;align-items:center;justify-content:center;z-index:50;padding:16px;overflow-y:auto;-webkit-overflow-scrolling:touch}.modal-backdrop.open{display:flex}
     .modal{width:min(720px,100%);max-height:calc(100dvh - 32px);overflow-y:auto;overflow-x:hidden;background:#1b1a18;border:1px solid #3a3732;border-radius:28px;padding:22px;box-shadow:0 30px 90px rgba(0,0,0,.7);overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
@@ -137,6 +149,7 @@
         <div class="card"><div class="section-head"><div><div class="eyebrow">Today</div><h2>Macro split</h2></div></div><div style="margin-top:18px"><div class="hero-meta"><span>Protein</span><b id="splitProtein">0%</b></div><div class="progress"><i id="splitProteinBar" style="width:0%;background:var(--red)"></i></div><div class="hero-meta"><span>Carbs</span><b id="splitCarbs">0%</b></div><div class="progress"><i id="splitCarbsBar" style="width:0%;background:var(--blue)"></i></div><div class="hero-meta"><span>Fat</span><b id="splitFat">0%</b></div><div class="progress"><i id="splitFatBar" style="width:0%;background:var(--green)"></i></div></div></div>
       </div>
       <div class="section"><div class="section-head"><div><div class="eyebrow">Latest</div><h2>Today’s meals</h2></div><button class="link" onclick="navigate('meals')">See all →</button></div><div class="card" id="todayMeals"></div></div>
+      <div class="section"><div class="section-head"><div><div class="eyebrow">By meal type</div><h2>Today’s macro summary</h2></div></div><div class="meal-type-summary" id="mealTypeSummary"></div></div>
     </section>
 
     <section id="goals" class="view">
@@ -198,6 +211,13 @@
     <div class="weight-modal-actions"><button class="danger" onclick="deleteEditingWeight()" aria-label="Delete weigh-in" title="Delete weigh-in"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M9 7V4h6v3M7 7l1 13h8l1-13M10 11v5M14 11v5"/></svg></button><button class="secondary" onclick="closeWeightModal()">Cancel</button><button class="primary icon-action" onclick="saveWeightEdit()" aria-label="Save weight" title="Save weight"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4h12l2 2v14H5z"/><path d="M8 4v6h8V4M9 20v-6h6v6"/></svg></button></div>
   </div>
 </div>
+<div class="modal-backdrop" id="mealTypeModalBackdrop" onclick="if(event.target===this)closeMealTypeModal()">
+  <div class="modal meal-type-modal">
+    <div class="modal-head"><div><div class="eyebrow" id="mealTypeModalEyebrow">Breakfast</div><h2 id="mealTypeModalTitle">Breakfast meals</h2></div><button class="close" onclick="closeMealTypeModal()">×</button></div>
+    <div class="meal-type-modal-meta" id="mealTypeModalMeta"></div>
+    <div class="card type-meals-list" id="mealTypeModalList"></div>
+  </div>
+</div>
 <div class="toast" id="toast"></div>
 
 <script>
@@ -205,6 +225,7 @@ const KEY='macroTrackerV1';
 // Paste your Google Apps Script /exec URL here. This is the only place you need to configure Google Sheets.
 // Example: const GOOGLE_SHEET_URL='https://script.google.com/macros/s/XXXXXXXXXXXX/exec';
 const GOOGLE_SHEET_URL='https://script.google.com/macros/s/AKfycbwZhbuC6t-AIooNLMMSXC7IuiKuSzrpV9E6UDDyIOv8Q4LCxl4af30OHZviIAebBK0_/exec';
+const DEFAULT_FOOD_LIBRARY=[{"name":"Ground beef x 200 g (raw) and rice (100 g)","carbs":28,"protein":40,"fat":17,"calories":458},{"name":"Protein x 1 scoop","carbs":0,"protein":27,"fat":0,"calories":110},{"name":"Artesano toast x 2","carbs":34,"protein":0,"fat":2,"calories":160},{"name":"Hellmann's Light Mayo x 1 tbsp","carbs":0,"protein":0,"fat":2,"calories":30},{"name":"Coffee(1 tsp) and Oat milk Barista - 1/8 cup","carbs":2.375,"protein":0.25,"fat":0.875,"calories":23.75},{"name":"Oikos fruit yogurt","carbs":12,"protein":8,"fat":1.25,"calories":80},{"name":"Rice x 100 g","carbs":28,"protein":0,"fat":0,"calories":130},{"name":"Ground beef x 200 g (raw)","carbs":0,"protein":40,"fat":17,"calories":328},{"name":"Oat milk vanilla - 1 cup","carbs":15,"protein":1,"fat":2,"calories":80},{"name":"Tims double double - small","carbs":16,"protein":1,"fat":4.5,"calories":130},{"name":"Egg white x 100 g","carbs":1,"protein":10,"fat":0,"calories":45},{"name":"chicken breast x 150g","carbs":0,"protein":47,"fat":6,"calories":250},{"name":"chicken breast (150g) and rice (100g)","carbs":28,"protein":47,"fat":6,"calories":420},{"name":"0% milk - 1 cup","carbs":13,"protein":9,"fat":0,"calories":90},{"name":"banana","carbs":27,"protein":0,"fat":0,"calories":100},{"name":"GV instant oatmeal - regular x 1 sachet","carbs":19,"protein":4,"fat":2,"calories":100},{"name":"DH costco ahi tuna 1 portion","carbs":0,"protein":22,"fat":1,"calories":100},{"name":"HH costco spicy chicken breast bites 100g","carbs":21,"protein":13,"fat":4,"calories":170},{"name":"kirkland shrimp x 8 pcs","carbs":0,"protein":20,"fat":0.4,"calories":90},{"name":"Silk Oat Milk Vanilla - 250 ml","carbs":15,"protein":1,"fat":3.5,"calories":90},{"name":"Kravé chocolate cereal x 22g","carbs":16.5,"protein":1.5,"fat":2.5,"calories":90},{"name":"protein shake","carbs":6,"protein":30,"fat":3,"calories":160},{"name":"Rice x 75 g","carbs":21,"protein":0,"fat":0,"calories":97.5},{"name":"105g rotisserie chicken + 1 protein tortilla wrap","carbs":20,"protein":42,"fat":18,"calories":384},{"name":"Large egg","carbs":1,"protein":7,"fat":5,"calories":75},{"name":"1 pc PC Protein Tortilla","carbs":17,"protein":13,"fat":4,"calories":140},{"name":"protein heart waffle x 4","carbs":0,"protein":23.36,"fat":0,"calories":168},{"name":"105g rotisserie chicken + 1 protein tortilla","carbs":17,"protein":44,"fat":17.5,"calories":355},{"name":"EGG WRAP","carbs":19,"protein":30,"fat":11,"calories":290},{"name":"Philadelphia Whipped Cream Cheese 11 g/1 tbsp","carbs":1.5,"protein":1.5,"fat":3,"calories":40},{"name":"carbonaut Seeded Herb & Garlic Gluten-Free","carbs":3,"protein":1,"fat":6,"calories":90},{"name":"ED Smith No Sugar Added syrup x 4 tbsp","carbs":9,"protein":0,"fat":0,"calories":40},{"name":"strawberries x 100 g","carbs":7,"protein":1,"fat":0,"calories":32},{"name":"175 g oikos greek yogurt vanilla","carbs":15,"protein":17,"fat":0,"calories":130},{"name":"pure protein bar","carbs":18,"protein":20,"fat":5,"calories":190},{"name":"175g mango","carbs":26,"protein":1,"fat":0,"calories":105},{"name":"Rice x 150g","carbs":42,"protein":0,"fat":0,"calories":195},{"name":"PC chicken burger x 1 patty","carbs":3,"protein":23,"fat":6,"calories":160},{"name":"PC salmon burger x 1 patty","carbs":0,"protein":24,"fat":7,"calories":160},{"name":"D'Italiano burger bun","carbs":32,"protein":6,"fat":4,"calories":180},{"name":"no name original bagel","carbs":42,"protein":8,"fat":2,"calories":210},{"name":"PC twice the fruit jam - apricot x 1 tbsp","carbs":6,"protein":0,"fat":0,"calories":25},{"name":"15g Kraft Smooth Light peanut butter","carbs":6,"protein":3,"fat":6,"calories":80},{"name":"fiorfiore basil pesto x 2 tsp","carbs":0,"protein":0,"fat":3,"calories":40},{"name":"watermelon x 154 g","carbs":11,"protein":0,"fat":0,"calories":46},{"name":"200 g kirkland chicken breast chunks + sweet","carbs":22,"protein":36,"fat":16,"calories":360},{"name":"175 g mango","carbs":26,"protein":1,"fat":0,"calories":105},{"name":"blueberries x 88g","carbs":13,"protein":0,"fat":0,"calories":51},{"name":"2 pc dempster protein toast","carbs":30,"protein":14,"fat":1,"calories":200},{"name":"Grenade","carbs":22,"protein":22,"fat":8,"calories":220},{"name":"1 dempster protein bagel","carbs":37,"protein":18,"fat":2,"calories":230},{"name":"chicken breast x 125g","carbs":0,"protein":39,"fat":5,"calories":205}];
 let sheetSyncUrl=GOOGLE_SHEET_URL.trim();
 let syncInFlight=false;
 const savedState=JSON.parse(localStorage.getItem(KEY)||'null');
@@ -225,7 +246,8 @@ const state={
   goals:{...defaultState.goals,...((savedState&&savedState.goals)||{})},
   meals:Array.isArray(savedState&&savedState.meals)?savedState.meals:defaultState.meals,
   weights:Array.isArray(savedState&&savedState.weights)?savedState.weights:defaultState.weights,
-  weightUnit:(savedState&&savedState.weightUnit)||'lbs'
+  weightUnit:(savedState&&savedState.weightUnit)||'lbs',
+  foodLibrary:Array.isArray(savedState&&savedState.foodLibrary)?[...DEFAULT_FOOD_LIBRARY,...savedState.foodLibrary]:[...DEFAULT_FOOD_LIBRARY]
 };
 state.weights=state.weights.map((w,i)=>{const safe=(w&&typeof w==='object')?w:{};return {...safe,id:safe.id??(Date.now()+10000+i),value:+safe.value||0,date:safe.date||localIsoDate(),createdAt:Number(safe.createdAt||0)||0}});
 state.meals=state.meals.map((m,i)=>{
@@ -259,7 +281,7 @@ function loadFromSheet(showToastOnSuccess=false){if(!sheetSyncUrl||remoteLoadInF
 function persistLocalOnly(){localStorage.setItem(KEY,JSON.stringify(state))}
 async function syncToSheet(force=false){if(!sheetSyncUrl)return;if(syncInFlight){syncQueued=true;return}syncInFlight=true;setSyncStatus('Saving to Google Sheets…');try{const body=new URLSearchParams();body.set('state',JSON.stringify(state));await fetch(sheetSyncUrl,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded;charset=UTF-8'},body,keepalive:true,mode:'no-cors'});setSyncStatus('Connected — changes synced to Google Sheets.','connected');clearSyncPending()}catch(err){console.error(err);setSyncStatus('Saved locally, but Google Sheets sync failed.','error')}finally{syncInFlight=false;if(syncQueued){syncQueued=false;setTimeout(()=>syncToSheet(true),50)}}}
 function startSheetPolling(){if(!sheetSyncUrl)return;setInterval(()=>{if(!document.hidden&&!syncInFlight&&!remoteLoadInFlight&&localStorage.getItem(KEY+'_syncPending')!=='1')loadFromSheet(false)},3000)}
-function applyRemoteState(incoming){state.goals={...defaultState.goals,...(incoming.goals||{})};state.meals=Array.isArray(incoming.meals)?incoming.meals:[];state.weights=(Array.isArray(incoming.weights)?incoming.weights:[]).map((w,i)=>{const safe=(w&&typeof w==='object')?w:{};return {...safe,id:safe.id??(Date.now()+10000+i),value:+safe.value||0,date:safe.date||localIsoDate(),createdAt:Number(safe.createdAt||0)||0}});state.weightUnit='lbs';state._updatedAt=Number(incoming._updatedAt||0);state.meals=state.meals.map((m,i)=>({...m,id:m.id??(Date.now()+i),name:m.name||'Untitled meal',items:Array.isArray(m.items)?m.items.filter(Boolean):[],date:m.date||m.dateTime||m.datetime||'',time:m.time||'',mealType:m.mealType||mealType(m)}))}
+function applyRemoteState(incoming){state.goals={...defaultState.goals,...(incoming.goals||{})};state.foodLibrary=[...DEFAULT_FOOD_LIBRARY,...(Array.isArray(incoming.foodLibrary)?incoming.foodLibrary:[])];state.meals=Array.isArray(incoming.meals)?incoming.meals:[];state.weights=(Array.isArray(incoming.weights)?incoming.weights:[]).map((w,i)=>{const safe=(w&&typeof w==='object')?w:{};return {...safe,id:safe.id??(Date.now()+10000+i),value:+safe.value||0,date:safe.date||localIsoDate(),createdAt:Number(safe.createdAt||0)||0}});state.weightUnit='lbs';state._updatedAt=Number(incoming._updatedAt||0);state.meals=state.meals.map((m,i)=>({...m,id:m.id??(Date.now()+i),name:m.name||'Untitled meal',items:Array.isArray(m.items)?m.items.filter(Boolean):[],date:m.date||m.dateTime||m.datetime||'',time:m.time||'',mealType:m.mealType||mealType(m)}))}
 
 function refreshUI(){
   renderDashboard();
@@ -323,7 +345,38 @@ function renderDashboard(){
   const split={protein:macroTotal?t.protein/macroTotal*100:0,carbs:macroTotal?t.carbs/macroTotal*100:0,fat:macroTotal?t.fat/macroTotal*100:0};
   ['protein','carbs','fat'].forEach(k=>{document.getElementById('split'+k[0].toUpperCase()+k.slice(1)).textContent=Math.round(split[k])+'%';document.getElementById('split'+k[0].toUpperCase()+k.slice(1)+'Bar').style.width=split[k]+'%'});
   renderTodayMeals();
+  renderMealTypeSummary();
 }
+function mealTypeTotals(date,type){
+  const meals=(Array.isArray(state.meals)?state.meals:[]).filter(m=>mealDate(m)===date && mealType(m)===type);
+  return meals.reduce((a,m)=>{const t=mealTotal(m);a.calories+=t.calories;a.protein+=t.protein;a.carbs+=t.carbs;a.fat+=t.fat;return a;},{calories:0,protein:0,carbs:0,fat:0,count:meals.length});
+}
+function renderMealTypeSummary(){
+  const box=document.getElementById('mealTypeSummary');
+  if(!box)return;
+  const date=isoDate(currentDate);
+  const types=['breakfast','lunch','dinner','snack'];
+  box.innerHTML=types.map(type=>{
+    const t=mealTypeTotals(date,type);
+    return `<button type="button" class="meal-type-summary-card" onclick="openMealTypeModal('${type}')" aria-label="View ${type} meals for ${fmtDate(currentDate)}">
+      <div class="meal-type-summary-top"><div><div class="meal-type-summary-name">${type}</div><div class="meal-type-summary-count">${t.count} meal${t.count===1?'':'s'}</div></div><div class="meal-type-summary-icon">${mealIcon(type)}</div></div>
+      <div><div class="meal-type-summary-cal">${Math.round(t.calories)} <span>kcal</span></div><div class="meal-type-summary-macros"><span><b>${Math.round(t.protein)}g</b> P</span><span><b>${Math.round(t.carbs)}g</b> C</span><span><b>${Math.round(t.fat)}g</b> F</span></div></div>
+    </button>`;
+  }).join('');
+}
+function openMealTypeModal(type){
+  const date=isoDate(currentDate);
+  const meals=(Array.isArray(state.meals)?state.meals:[]).filter(m=>mealDate(m)===date && mealType(m)===type).sort((a,b)=>mealTime(a).localeCompare(mealTime(b)));
+  const t=mealTypeTotals(date,type);
+  document.getElementById('mealTypeModalEyebrow').textContent=type;
+  document.getElementById('mealTypeModalTitle').textContent=`${type.charAt(0).toUpperCase()+type.slice(1)} meals`;
+  document.getElementById('mealTypeModalMeta').textContent=`${fmtDate(currentDate)} · ${t.count} meal${t.count===1?'':'s'} · ${Math.round(t.calories)} kcal · ${Math.round(t.protein)}g P · ${Math.round(t.carbs)}g C · ${Math.round(t.fat)}g F`;
+  const list=document.getElementById('mealTypeModalList');
+  list.innerHTML=meals.length?meals.map(mealRow).join(''):`<div class="empty">No ${type} meals logged for this day.</div>`;
+  document.getElementById('mealTypeModalBackdrop').classList.add('open');
+  list.scrollTop=0;
+}
+function closeMealTypeModal(){document.getElementById('mealTypeModalBackdrop').classList.remove('open')}
 function renderTodayMeals(){
   const box=document.getElementById('todayMeals');
   if(!box)return;
@@ -464,8 +517,8 @@ function renderFoodOptions(input){
   const q=input.value.trim().toLowerCase();
   if(!q){menu.classList.remove('open');menu.innerHTML='';return;}
   const foods=[];const seen=new Set();
-  state.meals.forEach(m=>m.items.forEach(i=>{const key=(i.name||'').trim().toLowerCase();if(key&&key.includes(q)&&!seen.has(key)){seen.add(key);foods.push(i)}}));
-  foods.sort((a,b)=>a.name.localeCompare(b.name));
+  [...(state.foodLibrary||[]),...state.meals.flatMap(m=>Array.isArray(m.items)?m.items:[])].forEach(i=>{const key=(i.name||'').trim().toLowerCase();if(key&&key.includes(q)&&!seen.has(key)){seen.add(key);foods.push(i)}});
+  foods.sort((a,b)=>{const an=(a.name||'').toLowerCase(),bn=(b.name||'').toLowerCase();return an.localeCompare(bn)});
   menu.innerHTML=foods.slice(0,7).map(i=>`<button type="button" class="food-reuse-option" data-name="${esc(i.name)}" data-cal="${i.calories}" data-pro="${i.protein}" data-carb="${i.carbs}" data-fat="${i.fat}" onclick="reuseFood(this)"><strong>${esc(i.name)}</strong><small>${Math.round(i.calories)} kcal · ${Math.round(i.protein)}g P · ${Math.round(i.carbs)}g C · ${Math.round(i.fat)}g F</small></button>`).join('');
   menu.classList.toggle('open',foods.length>0);
 }
@@ -487,6 +540,7 @@ function openModal(){
   document.getElementById('modalBackdrop').classList.add('open');addFoodRow();document.querySelector('#modalBackdrop .modal').scrollTop=0;
 }
 function editMeal(id){
+  closeMealTypeModal();
   const m=state.meals.find(x=>x.id===id);if(!m)return;
   resetModal();editingMealId=id;pendingPhoto='';
   document.getElementById('modalEyebrow').textContent='Edit nutrition';document.getElementById('modalTitle').textContent='Edit meal';document.getElementById('deleteMealBtn').style.display='inline-flex';

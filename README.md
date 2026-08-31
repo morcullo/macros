@@ -44,3 +44,7 @@ The script creates these tabs automatically:
 ### Important
 
 The Apps Script web app is set to **Anyone** so the static app can communicate with it without a Google sign-in flow. Treat the deployment URL as private; anyone who obtains it could potentially send data to that sheet. For a personal tracker, this is the simplest setup. A future OAuth-based version can provide stronger access control.
+
+
+## Food Library
+The app includes the imported reusable-food library from the supplied screenshot. When the app syncs, these foods are also written to a `Food Library` tab in Google Sheets.
