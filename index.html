@@ -21,7 +21,7 @@
     input,textarea,select{font-size:16px}
     .pull-refresh{position:fixed;top:10px;left:50%;transform:translate(-50%,-70px);z-index:100;background:#24221f;border:1px solid var(--orange);color:var(--orange);border-radius:999px;padding:8px 14px;font-size:12px;font-weight:800;opacity:0;transition:.2s;pointer-events:none}.pull-refresh.show{transform:translate(-50%,0);opacity:1}.pull-refresh .spinner{display:inline-block;width:12px;height:12px;border:2px solid rgba(255,184,28,.25);border-top-color:var(--orange);border-radius:50%;vertical-align:-2px;margin-right:6px;animation:spin .7s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}
     .date-picker-wrap{position:relative;display:inline-flex}.date-picker-wrap input{position:absolute;inset:0;width:100%;height:100%;opacity:.01;cursor:pointer;z-index:2;margin:0;padding:0;border:0}.date-picker-wrap .date-pill{position:relative;z-index:1}
-    .meal-date-time{width:100%;max-width:none}
+    .meal-date-time{display:block;width:100%!important;max-width:none!important;min-width:0;box-sizing:border-box;appearance:none;-webkit-appearance:none}
     .goal-card.shape-1:after{transform:rotate(45deg);border-radius:20px}.goal-card.shape-2:after{transform:rotate(0deg);border-radius:50%;width:150px;height:150px}.goal-card.shape-3:after{transform:rotate(30deg);border-radius:8px;width:170px;height:170px}.goal-card.shape-4:after{transform:rotate(60deg);border-radius:50% 12px 50% 12px;width:160px;height:160px}
     .modal-actions .danger{border:1px solid #6b3028;background:#2d1714;color:#ff8f7d;border-radius:13px;padding:0;width:44px;height:44px;display:flex;align-items:center;justify-content:center;margin-right:auto;flex:0 0 44px;line-height:0}.modal-actions .icon-action{width:44px;height:44px;padding:0;display:flex;align-items:center;justify-content:center;line-height:0}.modal-actions .icon-action svg{width:20px;height:20px;display:block;flex:0 0 auto;margin:0}
 
@@ -96,11 +96,12 @@
     .full-meals{background:var(--panel);border:1px solid var(--line);border-radius:22px;padding:0 20px}
     .meal-detail{display:grid;grid-template-columns:62px minmax(0,1fr) auto auto;gap:15px;align-items:center;padding:16px 0;border-bottom:1px solid var(--line)}.meal-detail:last-child{border-bottom:0}.meal-detail .macros{display:flex;gap:12px;color:var(--muted);font-size:12px}.meal-detail .macros b{color:var(--text)}
     .empty{padding:35px;text-align:center;color:var(--muted)}
-    .modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.72);backdrop-filter:blur(7px);display:none;align-items:center;justify-content:center;z-index:50;padding:16px}.modal-backdrop.open{display:flex}
-    .modal{width:min(720px,100%);max-height:calc(100vh - 32px);overflow-y:auto;overflow-x:hidden;background:#1b1a18;border:1px solid #3a3732;border-radius:28px;padding:22px;box-shadow:0 30px 90px rgba(0,0,0,.7)}
+    .modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.72);backdrop-filter:blur(7px);display:none;align-items:center;justify-content:center;z-index:50;padding:16px;overflow-y:auto;-webkit-overflow-scrolling:touch}.modal-backdrop.open{display:flex}
+    .modal{width:min(720px,100%);max-height:calc(100dvh - 32px);overflow-y:auto;overflow-x:hidden;background:#1b1a18;border:1px solid #3a3732;border-radius:28px;padding:22px;box-shadow:0 30px 90px rgba(0,0,0,.7);overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+    @supports not (height: 100dvh){.modal{max-height:calc(100vh - 32px)}}
     .modal-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}.close{width:38px;height:38px;border-radius:12px;border:1px solid var(--line);background:#24221f;color:var(--text)}
     .field label{display:block;color:var(--muted);font-size:12px;margin-bottom:7px}.field input,.field textarea{width:100%;background:#11100f;border:1px solid #37342f;color:var(--text);border-radius:13px;padding:12px;outline:none}.field textarea{min-height:76px;resize:vertical}
-    .meal-head-fields{display:grid;grid-template-columns:1fr 1fr;gap:12px}.meal-name-wrap{position:relative}.reuse-menu{position:absolute;left:0;right:0;top:100%;margin-top:7px;background:#24221f;border:1px solid #403b34;border-radius:14px;box-shadow:0 18px 45px rgba(0,0,0,.5);overflow:hidden;z-index:5;display:none}.reuse-menu.open{display:block}.reuse-option{width:100%;border:0;border-bottom:1px solid #35312c;background:transparent;color:var(--text);padding:12px;text-align:left}.reuse-option:last-child{border-bottom:0}.reuse-option:hover{background:#302c27}.reuse-option strong{display:block}.reuse-option small{display:block;color:var(--muted);margin-top:3px}.meal-type-label{margin-top:15px}.meal-type-buttons{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:8px}.meal-type-btn{border:1px solid #3a3732;background:#24221f;color:var(--muted);border-radius:12px;padding:10px 8px;font-weight:750}.meal-type-btn.selected{background:var(--orange);border-color:var(--orange);color:#15130e}.meal-type-chip{display:inline-flex;align-items:center;border:1px solid #3a3732;background:#24221f;color:var(--muted);border-radius:999px;padding:3px 8px;font-size:10px;font-weight:750;text-transform:capitalize;margin-left:7px}.meal-clickable{cursor:pointer;transition:background .15s ease}.meal-detail.meal-clickable:hover{background:#201f1c;border-radius:14px;margin-left:-12px;margin-right:-12px;padding-left:12px;padding-right:12px}.meal-row.meal-clickable:hover{background:#201f1c;border-radius:14px;padding-left:12px;padding-right:12px;margin-left:-12px;margin-right:-12px}.edit-modal .modal-head .eyebrow{color:var(--orange)}.food-list{margin-top:16px}.food-item{background:#151412;border:1px solid #2e2b27;border-radius:16px;padding:14px;margin-bottom:10px}.food-name-wrap{position:relative}.food-reuse-menu{position:absolute;left:0;right:0;top:100%;margin-top:6px;background:#24221f;border:1px solid #403b34;border-radius:14px;box-shadow:0 18px 45px rgba(0,0,0,.5);overflow:hidden;z-index:8;display:none}.food-reuse-menu.open{display:block}.food-reuse-option{width:100%;border:0;border-bottom:1px solid #35312c;background:transparent;color:var(--text);padding:11px 12px;text-align:left}.food-reuse-option:last-child{border-bottom:0}.food-reuse-option:hover{background:#302c27}.food-reuse-option strong{display:block}.food-reuse-option small{display:block;color:var(--muted);margin-top:3px}.meal-type-icon{width:54px;height:54px;border-radius:15px;background:#2a2926;color:var(--orange);display:grid;place-items:center}.meal-type-icon svg{width:27px;height:27px}.food-top{display:flex;gap:10px}.food-top .field:first-child{flex:1}.remove{border:1px solid #3a332e;background:transparent;color:#ff806e;border-radius:11px;width:42px;height:42px;margin-top:21px}.macro-inputs{display:grid;grid-template-columns:repeat(4,1fr);gap:9px;margin-top:10px}.modal-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:18px}
+    .meal-head-fields{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px}.meal-head-fields>.field:nth-child(2){grid-column:1 / -1}.meal-name-wrap{position:relative}.reuse-menu{position:absolute;left:0;right:0;top:100%;margin-top:7px;background:#24221f;border:1px solid #403b34;border-radius:14px;box-shadow:0 18px 45px rgba(0,0,0,.5);overflow:hidden;z-index:5;display:none}.reuse-menu.open{display:block}.reuse-option{width:100%;border:0;border-bottom:1px solid #35312c;background:transparent;color:var(--text);padding:12px;text-align:left}.reuse-option:last-child{border-bottom:0}.reuse-option:hover{background:#302c27}.reuse-option strong{display:block}.reuse-option small{display:block;color:var(--muted);margin-top:3px}.meal-type-label{margin-top:15px}.meal-type-buttons{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:8px}.meal-type-btn{border:1px solid #3a3732;background:#24221f;color:var(--muted);border-radius:12px;padding:10px 8px;font-weight:750}.meal-type-btn.selected{background:var(--orange);border-color:var(--orange);color:#15130e}.meal-type-chip{display:inline-flex;align-items:center;border:1px solid #3a3732;background:#24221f;color:var(--muted);border-radius:999px;padding:3px 8px;font-size:10px;font-weight:750;text-transform:capitalize;margin-left:7px}.meal-clickable{cursor:pointer;transition:background .15s ease}.meal-detail.meal-clickable:hover{background:#201f1c;border-radius:14px;margin-left:-12px;margin-right:-12px;padding-left:12px;padding-right:12px}.meal-row.meal-clickable:hover{background:#201f1c;border-radius:14px;padding-left:12px;padding-right:12px;margin-left:-12px;margin-right:-12px}.edit-modal .modal-head .eyebrow{color:var(--orange)}.food-list{margin-top:16px}.food-item{background:#151412;border:1px solid #2e2b27;border-radius:16px;padding:14px;margin-bottom:10px}.food-name-wrap{position:relative}.food-reuse-menu{position:absolute;left:0;right:0;top:100%;margin-top:6px;background:#24221f;border:1px solid #403b34;border-radius:14px;box-shadow:0 18px 45px rgba(0,0,0,.5);overflow:hidden;z-index:8;display:none}.food-reuse-menu.open{display:block}.food-reuse-option{width:100%;border:0;border-bottom:1px solid #35312c;background:transparent;color:var(--text);padding:11px 12px;text-align:left}.food-reuse-option:last-child{border-bottom:0}.food-reuse-option:hover{background:#302c27}.food-reuse-option strong{display:block}.food-reuse-option small{display:block;color:var(--muted);margin-top:3px}.meal-type-icon{width:54px;height:54px;border-radius:15px;background:#2a2926;color:var(--orange);display:grid;place-items:center}.meal-type-icon svg{width:27px;height:27px}.food-top{display:flex;gap:10px}.food-top .field:first-child{flex:1}.remove{border:1px solid #3a332e;background:transparent;color:#ff806e;border-radius:11px;width:42px;height:42px;margin-top:21px}.macro-inputs{display:grid;grid-template-columns:repeat(4,1fr);gap:9px;margin-top:10px}.modal-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:18px}
     .secondary{border:1px solid #3a3732;background:#24221f;color:var(--text);border-radius:13px;padding:12px 17px;font-weight:700}
     .photo-box{display:none}
     .toast{position:fixed;left:50%;bottom:105px;transform:translate(-50%,20px);background:#f4f0e9;color:#171615;padding:11px 15px;border-radius:12px;font-weight:700;opacity:0;pointer-events:none;transition:.25s;z-index:80}.toast.show{opacity:1;transform:translate(-50%,0)} .sync-card{margin-top:18px}.sync-row{display:flex;gap:10px;align-items:center;margin-top:12px}.sync-input{flex:1;background:#11100f;border:1px solid #37342f;color:var(--text);padding:12px;border-radius:13px;outline:none}.sync-input:focus{border-color:var(--orange)}.sync-status{font-size:12px;color:var(--muted);margin-top:9px}.sync-status.connected{color:var(--green)}.sync-status.error{color:var(--red)}
@@ -226,7 +227,7 @@ const state={
   weights:Array.isArray(savedState&&savedState.weights)?savedState.weights:defaultState.weights,
   weightUnit:(savedState&&savedState.weightUnit)||'lbs'
 };
-state.weights=state.weights.map((w,i)=>{const safe=(w&&typeof w==='object')?w:{};return {...safe,id:safe.id??(Date.now()+10000+i),value:+safe.value||0,date:safe.date||localIsoDate()}});
+state.weights=state.weights.map((w,i)=>{const safe=(w&&typeof w==='object')?w:{};return {...safe,id:safe.id??(Date.now()+10000+i),value:+safe.value||0,date:safe.date||localIsoDate(),createdAt:Number(safe.createdAt||0)||0}});
 state.meals=state.meals.map((m,i)=>{
   const safe=(m&&typeof m==='object')?m:{};
   return {
@@ -257,7 +258,7 @@ function loadFromSheet(showToastOnSuccess=false){if(!sheetSyncUrl||remoteLoadInF
 function persistLocalOnly(){localStorage.setItem(KEY,JSON.stringify(state))}
 async function syncToSheet(force=false){if(!sheetSyncUrl)return;if(syncInFlight){syncQueued=true;return}syncInFlight=true;setSyncStatus('Saving to Google Sheets…');try{const body=new URLSearchParams();body.set('state',JSON.stringify(state));await fetch(sheetSyncUrl,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded;charset=UTF-8'},body,keepalive:true,mode:'no-cors'});setSyncStatus('Connected — changes synced to Google Sheets.','connected')}catch(err){console.error(err);setSyncStatus('Saved locally, but Google Sheets sync failed.','error')}finally{syncInFlight=false;if(syncQueued){syncQueued=false;setTimeout(()=>syncToSheet(true),50)}}}
 function startSheetPolling(){if(!sheetSyncUrl)return;setInterval(()=>{if(!document.hidden&&!syncInFlight&&!remoteLoadInFlight)loadFromSheet(false)},3000)}
-function applyRemoteState(incoming){state.goals={...defaultState.goals,...(incoming.goals||{})};state.meals=Array.isArray(incoming.meals)?incoming.meals:[];state.weights=(Array.isArray(incoming.weights)?incoming.weights:[]).map((w,i)=>{const safe=(w&&typeof w==='object')?w:{};return {...safe,id:safe.id??(Date.now()+10000+i),value:+safe.value||0,date:safe.date||localIsoDate()}});state.weightUnit='lbs';state._updatedAt=Number(incoming._updatedAt||0);state.meals=state.meals.map((m,i)=>({...m,id:m.id??(Date.now()+i),name:m.name||'Untitled meal',items:Array.isArray(m.items)?m.items.filter(Boolean):[],date:m.date||m.dateTime||m.datetime||'',time:m.time||'',mealType:m.mealType||mealType(m)}))}
+function applyRemoteState(incoming){state.goals={...defaultState.goals,...(incoming.goals||{})};state.meals=Array.isArray(incoming.meals)?incoming.meals:[];state.weights=(Array.isArray(incoming.weights)?incoming.weights:[]).map((w,i)=>{const safe=(w&&typeof w==='object')?w:{};return {...safe,id:safe.id??(Date.now()+10000+i),value:+safe.value||0,date:safe.date||localIsoDate(),createdAt:Number(safe.createdAt||0)||0}});state.weightUnit='lbs';state._updatedAt=Number(incoming._updatedAt||0);state.meals=state.meals.map((m,i)=>({...m,id:m.id??(Date.now()+i),name:m.name||'Untitled meal',items:Array.isArray(m.items)?m.items.filter(Boolean):[],date:m.date||m.dateTime||m.datetime||'',time:m.time||'',mealType:m.mealType||mealType(m)}))}
 
 function refreshUI(){
   renderDashboard();
@@ -372,18 +373,35 @@ function weightDateKey(w){
   const parsed=new Date(raw);
   return Number.isNaN(parsed.getTime())?'':localIsoDate(parsed);
 }
-function sortedWeights(){return (Array.isArray(state.weights)?state.weights:[]).slice().sort((a,b)=>weightDateKey(b).localeCompare(weightDateKey(a)))}
+function weightSortValue(w){
+  const created=Number(w?.createdAt||0);
+  const dateKey=weightDateKey(w);
+  const dateTs=dateKey?new Date(dateKey+'T12:00:00').getTime():0;
+  return Math.max(created,dateTs||0);
+}
+function sortedWeights(){
+  return (Array.isArray(state.weights)?state.weights:[]).slice().sort((a,b)=>weightSortValue(b)-weightSortValue(a));
+}
 function renderWeights(){
   const ws=sortedWeights();
   const latest=ws.length?ws[0]:null;
   const current=document.getElementById('currentWeight');
   if(current)current.textContent=latest&&Number.isFinite(+latest.value)?Number(latest.value).toFixed(1):'—';
-  document.getElementById('weightTimeline').innerHTML=ws.map(w=>`<div class="weight-point" onclick="editWeight(${w.id})" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' ')editWeight(${w.id})"><span class="dot"></span><div><strong>${Number(w.value).toFixed(1)} lbs</strong><small style="display:block">${esc(w.date||'')}</small></div></div>`).join('');
+  const timeline=document.getElementById('weightTimeline');
+  if(!timeline)return;
+  timeline.innerHTML=ws.length?ws.map(w=>`<div class="weight-point" onclick="editWeight(${w.id})" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' ')editWeight(${w.id})"><span class="dot"></span><div><strong>${Number(w.value).toFixed(1)} lbs</strong><small style="display:block">${esc(w.date||'')}</small></div></div>`).join(''):'<p class="sub">No weigh-ins yet.</p>';
 }
 function addWeight(){
-  const v=+document.getElementById('weightInput').value;if(!v)return showToast('Enter a weight first');
-  state.weights.push({id:Date.now(),value:v,date:new Date().toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'})});
-  document.getElementById('weightInput').value='';persist();refreshUI();showToast('Weigh-in added');
+  const input=document.getElementById('weightInput');
+  const v=Number.parseFloat(input?.value);
+  if(!Number.isFinite(v)||v<=0)return showToast('Enter a valid weight first');
+  const now=Date.now();
+  state.weights=Array.isArray(state.weights)?state.weights:[];
+  state.weights.push({id:now,value:Math.round(v*10)/10,date:localIsoDate(),createdAt:now});
+  if(input)input.value='';
+  persist();
+  refreshUI();
+  showToast('Weigh-in added');
 }
 let editingWeightId=null;
 function editWeight(id){
@@ -392,22 +410,31 @@ function editWeight(id){
   document.getElementById('editWeightValue').value=Number(w.value)||'';
   const key=weightDateKey(w);document.getElementById('editWeightDate').value=key||localIsoDate();
   document.getElementById('weightModalBackdrop').classList.add('open');
+  requestAnimationFrame(()=>document.querySelector('#weightModalBackdrop .modal')?.scrollTo(0,0));
 }
 function closeWeightModal(){document.getElementById('weightModalBackdrop').classList.remove('open');editingWeightId=null}
 function saveWeightEdit(){
   if(editingWeightId===null)return;
-  const v=+document.getElementById('editWeightValue').value;const d=document.getElementById('editWeightDate').value;
-  if(!v)return showToast('Enter a weight first');if(!d)return showToast('Choose a date');
-  const idx=state.weights.findIndex(x=>String(x.id)===String(editingWeightId));if(idx<0)return closeWeightModal();
-  const dt=new Date(d+'T12:00:00');
-  state.weights[idx]={...state.weights[idx],value:v,date:dt.toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'})};
-  persist();refreshUI();closeWeightModal();showToast('Weigh-in updated');
+  const v=Number.parseFloat(document.getElementById('editWeightValue').value);
+  const d=document.getElementById('editWeightDate').value;
+  if(!Number.isFinite(v)||v<=0)return showToast('Enter a valid weight first');
+  if(!d)return showToast('Choose a date');
+  const idx=state.weights.findIndex(x=>String(x.id)===String(editingWeightId));
+  if(idx<0){closeWeightModal();return;}
+  state.weights[idx]={...state.weights[idx],value:Math.round(v*10)/10,date:d,createdAt:Number(state.weights[idx].createdAt||Date.now())};
+  persist();
+  refreshUI();
+  closeWeightModal();
+  showToast('Weigh-in updated');
 }
 function deleteEditingWeight(){
   if(editingWeightId===null)return;
   if(!confirm('Delete this weigh-in?'))return;
   state.weights=state.weights.filter(x=>String(x.id)!==String(editingWeightId));
-  persist();refreshUI();closeWeightModal();showToast('Weigh-in deleted');
+  persist();
+  refreshUI();
+  closeWeightModal();
+  showToast('Weigh-in deleted');
 }
 
 let foodCounter=0;
