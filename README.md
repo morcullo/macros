@@ -48,3 +48,24 @@ The Apps Script web app is set to **Anyone** so the static app can communicate w
 
 ## Food Library
 The app includes the imported reusable-food library from the supplied screenshot. When the app syncs, these foods are also written to a `Food Library` tab in Google Sheets.
+
+## ChatGPT food macro estimator
+
+The Add Meal food-item search now includes **✨ Estimate with ChatGPT**. Type a new food/serving such as `150 g chicken breast` or `1 cup oat milk vanilla`, then tap the AI option to fill calories, protein, carbs, and fat. AI-estimated foods are added to your reusable Food Library when the meal is saved.
+
+### One-time OpenAI setup
+
+The OpenAI API key is **not** stored in `index.html` or exposed to the browser. OpenAI recommends keeping API keys out of client-side apps and routing requests through a backend. The Google Apps Script is used as that backend.
+
+1. Open your Google Sheet → **Extensions → Apps Script**.
+2. Open **Project Settings**.
+3. Under **Script Properties**, add:
+   - Property: `OPENAI_API_KEY`
+   - Value: your OpenAI API key
+4. Save the property.
+5. Replace your deployed `Code.gs` with the included version.
+6. Redeploy the existing Web App as a **new version**.
+
+You do not put the OpenAI key into `index.html`. Your existing Google Apps Script `/exec` URL remains the same.
+
+The estimator uses OpenAI's Responses API with `gpt-5-mini`, a cost-efficient model suited to well-defined tasks. Estimates are approximations and should be checked against nutrition labels when accuracy matters.

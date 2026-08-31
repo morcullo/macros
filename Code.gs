@@ -17,10 +17,73 @@ const WEIGHT_SHEET = 'Weight';
 const GOALS_SHEET = 'Goals';
 
 function doGet(e) {
+  const action = e && e.parameter && e.parameter.action;
+  const cb = e && e.parameter && e.parameter.callback;
+  if (action === 'estimateFood') return estimateFood_(e);
   const state = readState_();
-  const callback = e && e.parameter && e.parameter.callback;
-  if (callback) return ContentService.createTextOutput(callback + '(' + JSON.stringify(state) + ')').setMimeType(ContentService.MimeType.JAVASCRIPT);
+  if (cb) return ContentService.createTextOutput(cb + '(' + JSON.stringify(state) + ')').setMimeType(ContentService.MimeType.JAVASCRIPT);
   return json_(state);
+}
+
+
+function estimateFood_(e) {
+  const cb = e && e.parameter && e.parameter.callback;
+  const food = String((e && e.parameter && e.parameter.food) || '').trim();
+  let result;
+  try {
+    if (!food) throw new Error('Enter a food item first.');
+    const key = PropertiesService.getScriptProperties().getProperty('OPENAI_API_KEY');
+    if (!key) throw new Error('OpenAI API key is not configured in Apps Script.');
+    const prompt = [
+      'Estimate nutrition for the food item below.',
+      'Return ONLY valid JSON with exactly these keys: name, calories, protein, carbs, fat, assumption.',
+      'Calories and macros should be for the serving/quantity stated by the user.',
+      'If no serving size is stated, use a reasonable standard serving and explain that assumption briefly.',
+      'Use numeric values for calories, protein, carbs, and fat. Do not include units in numeric fields.',
+      'Do not invent a brand unless the user provided one.',
+      'Food item: ' + food
+    ].join('\n');
+    const payload = {
+      model: 'gpt-5-mini',
+      input: prompt,
+      max_output_tokens: 250
+    };
+    const response = UrlFetchApp.fetch('https://api.openai.com/v1/responses', {
+      method: 'post',
+      contentType: 'application/json',
+      headers: {Authorization: 'Bearer ' + key},
+      payload: JSON.stringify(payload),
+      muteHttpExceptions: true
+    });
+    const code = response.getResponseCode();
+    const body = response.getContentText();
+    if (code < 200 || code >= 300) throw new Error('OpenAI request failed (' + code + ').');
+    const parsed = JSON.parse(body);
+    let text = parsed.output_text || '';
+    if (!text && Array.isArray(parsed.output)) {
+      parsed.output.forEach(item => {
+        if (item && item.type === 'message' && Array.isArray(item.content)) {
+          item.content.forEach(part => { if (part && part.type === 'output_text') text += part.text || ''; });
+        }
+      });
+    }
+    const jsonText = String(text).trim().replace(/^```json\s*/i,'').replace(/\s*```$/,'');
+    const foodData = JSON.parse(jsonText);
+    const clean = {
+      name: String(foodData.name || food),
+      calories: Math.max(0, Number(foodData.calories) || 0),
+      protein: Math.max(0, Number(foodData.protein) || 0),
+      carbs: Math.max(0, Number(foodData.carbs) || 0),
+      fat: Math.max(0, Number(foodData.fat) || 0),
+      assumption: String(foodData.assumption || '')
+    };
+    result = {ok:true, food:clean};
+  } catch (err) {
+    result = {ok:false, error:String(err && err.message || err)};
+  }
+  const out = JSON.stringify(result);
+  if (cb) return ContentService.createTextOutput(cb + '(' + out + ')').setMimeType(ContentService.MimeType.JAVASCRIPT);
+  return json_(result);
 }
 
 function doPost(e) {
