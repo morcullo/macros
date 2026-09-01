@@ -401,33 +401,50 @@ if(!state._excelImportV1){
   localStorage.setItem(KEY,JSON.stringify(state));
 }
 
-// Group the Excel entries imported above into one meal per date + meal type.
-// This migration is safe for existing installs: it only touches the entries
-// created by the Excel import (IDs 2000001-2000270) and leaves other meals alone.
-if(!state._excelImportV1Grouped){
-  const importedIds=new Set(EXCEL_IMPORT_V1.map(m=>Number(m.id)));
-  const imported=(state.meals||[]).filter(m=>importedIds.has(Number(m.id)));
-  if(imported.length){
-    const groups=new Map();
-    imported.forEach(m=>{
-      const type=String(m.mealType||mealType(m)||'snack').toLowerCase();
-      const key=`${m.date||''}__${type}`;
-      if(!groups.has(key)){
-        const d=String(m.date||'').match(/^(\d{4})-(\d{2})-(\d{2})$/);
-        const displayDate=d?`${d[2]}/${d[3]}`:(String(m.date||'').replace(/^(\d{4})-(\d{2})$/,'$2'));
-        const typeLabel=type.charAt(0).toUpperCase()+type.slice(1);
-        groups.set(key,{id:Math.min(...[...imported].filter(x=>String(x.date||'')===String(m.date||'') && String(x.mealType||mealType(x)||'snack').toLowerCase()===type).map(x=>Number(x.id)||Date.now())),date:m.date,name:`${displayDate} - ${typeLabel}`,photo:'',mealType:type,items:[]});
-      }
-      const g=groups.get(key);
-      if(Array.isArray(m.items)) g.items.push(...m.items.filter(Boolean));
-    });
-    state.meals=(state.meals||[]).filter(m=>!importedIds.has(Number(m.id)));
-    state.meals.push(...groups.values());
-    state.meals.sort((a,b)=>String(a.date||'').localeCompare(String(b.date||'')));
-  }
-  state._excelImportV1Grouped=true;
-  localStorage.setItem(KEY,JSON.stringify(state));
+// Build the imported Excel history into one meal per date + meal type.
+// This is intentionally reusable so a fresh deployment can restore the embedded
+// history even when localStorage is empty or Google Sheets returns an older state.
+function buildEmbeddedExcelMeals(){
+  const groups=new Map();
+  (EXCEL_IMPORT_V1||[]).forEach(m=>{
+    const type=String(m.mealType||mealType(m)||'snack').toLowerCase();
+    const key=`${m.date||''}__${type}`;
+    if(!groups.has(key)){
+      const d=String(m.date||'').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+      const displayDate=d?`${d[2]}/${d[3]}`:String(m.date||'');
+      const typeLabel=type.charAt(0).toUpperCase()+type.slice(1);
+      groups.set(key,{id:Number(m.id)||Date.now(),date:m.date,name:`${displayDate} - ${typeLabel}`,photo:'',mealType:type,items:[]});
+    }
+    const g=groups.get(key);
+    if(Array.isArray(m.items)) g.items.push(...m.items.filter(Boolean));
+    // Keep the lowest source id stable for future merges.
+    g.id=Math.min(Number(g.id)||Date.now(),Number(m.id)||Date.now());
+  });
+  return [...groups.values()];
 }
+
+function ensureEmbeddedExcelHistory(targetMeals){
+  const embedded=buildEmbeddedExcelMeals();
+  const importedSourceIds=new Set((EXCEL_IMPORT_V1||[]).map(m=>Number(m.id)));
+  const importedGroupIds=new Set(embedded.map(m=>Number(m.id)));
+  const meals=Array.isArray(targetMeals)?targetMeals.filter(Boolean):[];
+
+  // Remove any old ungrouped Excel rows and any stale copies of grouped rows,
+  // then add the canonical grouped history. Other user/manual meals are kept.
+  const cleaned=meals.filter(m=>{
+    const id=Number(m&&m.id);
+    return !importedSourceIds.has(id) && !importedGroupIds.has(id);
+  });
+  return cleaned.concat(embedded);
+}
+
+// Restore the embedded history on every startup, not just once. This prevents
+// a fresh deployment or a stale/empty localStorage state from appearing blank.
+state.meals=ensureEmbeddedExcelHistory(state.meals);
+state.meals.sort((a,b)=>String(a.date||'').localeCompare(String(b.date||'')));
+state._excelImportV1=true;
+state._excelImportV1Grouped=true;
+localStorage.setItem(KEY,JSON.stringify(state));
 
 function localIsoDate(d=new Date()){const y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,'0'),day=String(d.getDate()).padStart(2,'0');return `${y}-${m}-${day}`}
 let currentDate=new Date();currentDate.setHours(12,0,0,0);
@@ -439,11 +456,11 @@ function setSyncStatus(text, cls=''){const el=document.getElementById('syncStatu
 function updateSyncUI(){if(sheetSyncUrl)setSyncStatus('Google Sheets sync configured in index.html.','connected')}
 function connectSheet(){loadFromSheet(true)}
 let remoteLoadInFlight=false;
-function loadFromSheet(showToastOnSuccess=false){if(!sheetSyncUrl||remoteLoadInFlight)return;remoteLoadInFlight=true;setSyncStatus('Loading from Google Sheets…');const callback='__macroSheetCb_'+Date.now();window[callback]=(incoming)=>{try{delete window[callback];if(incoming&&incoming.__empty){setSyncStatus('Connected — your sheet is empty.','connected');if(!state.meals.length&&!state.weights.length)syncToSheet(true);return}if(incoming&&incoming.meals){const remoteStamp=Number(incoming._updatedAt||0);if(remoteStamp>=lastLocalMutation){applyRemoteState(incoming);persistLocalOnly();refreshUI();lastLocalMutation=remoteStamp;localStorage.setItem(KEY+'_updatedAt',String(remoteStamp));clearSyncPending();}setSyncStatus('Connected — synced with Google Sheets.','connected');if(showToastOnSuccess)showToast('Google Sheet connected')}else throw new Error('The sheet response was not valid app data.')}catch(err){console.error(err);setSyncStatus('Could not read the Google Sheet.','error')}finally{remoteLoadInFlight=false}};const script=document.createElement('script');script.src=sheetSyncUrl+'?callback='+encodeURIComponent(callback)+'&t='+Date.now();script.onerror=()=>{delete window[callback];remoteLoadInFlight=false;setSyncStatus('Could not connect. Check the deployment URL and access setting.','error')};document.body.appendChild(script)}
+function loadFromSheet(showToastOnSuccess=false){if(!sheetSyncUrl||remoteLoadInFlight)return;remoteLoadInFlight=true;setSyncStatus('Loading from Google Sheets…');const callback='__macroSheetCb_'+Date.now();window[callback]=(incoming)=>{try{delete window[callback];if(incoming&&incoming.__empty){setSyncStatus('Connected — your sheet is empty.','connected');state.meals=ensureEmbeddedExcelHistory(state.meals);persistLocalOnly();refreshUI();if(!state.weights.length)syncToSheet(true);return}if(incoming&&incoming.meals){const remoteStamp=Number(incoming._updatedAt||0);if(remoteStamp>=lastLocalMutation){const beforeIds=new Set((state.meals||[]).map(m=>Number(m&&m.id)));applyRemoteState(incoming);const afterIds=new Set((state.meals||[]).map(m=>Number(m&&m.id)));const embeddedWasAdded=[...afterIds].some(id=>!beforeIds.has(id)&&String(id).length);persistLocalOnly();refreshUI();lastLocalMutation=remoteStamp;localStorage.setItem(KEY+'_updatedAt',String(remoteStamp));clearSyncPending();if(embeddedWasAdded){setTimeout(()=>syncToSheet(true),100)}}setSyncStatus('Connected — synced with Google Sheets.','connected');if(showToastOnSuccess)showToast('Google Sheet connected')}else throw new Error('The sheet response was not valid app data.')}catch(err){console.error(err);setSyncStatus('Could not read the Google Sheet.','error')}finally{remoteLoadInFlight=false}};const script=document.createElement('script');script.src=sheetSyncUrl+'?callback='+encodeURIComponent(callback)+'&t='+Date.now();script.onerror=()=>{delete window[callback];remoteLoadInFlight=false;setSyncStatus('Could not connect. Check the deployment URL and access setting.','error')};document.body.appendChild(script)}
 function persistLocalOnly(){localStorage.setItem(KEY,JSON.stringify(state))}
 async function syncToSheet(force=false){if(!sheetSyncUrl)return;if(syncInFlight){syncQueued=true;return}syncInFlight=true;setSyncStatus('Saving to Google Sheets…');try{const body=new URLSearchParams();body.set('state',JSON.stringify(state));await fetch(sheetSyncUrl,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded;charset=UTF-8'},body,keepalive:true,mode:'no-cors'});setSyncStatus('Connected — changes synced to Google Sheets.','connected');clearSyncPending()}catch(err){console.error(err);setSyncStatus('Saved locally, but Google Sheets sync failed.','error')}finally{syncInFlight=false;if(syncQueued){syncQueued=false;setTimeout(()=>syncToSheet(true),50)}}}
 function startSheetPolling(){if(!sheetSyncUrl)return;setInterval(()=>{if(!document.hidden&&!syncInFlight&&!remoteLoadInFlight&&localStorage.getItem(KEY+'_syncPending')!=='1')loadFromSheet(false)},3000)}
-function applyRemoteState(incoming){state.goals={...defaultState.goals,...(incoming.goals||{})};state.foodLibrary=[...DEFAULT_FOOD_LIBRARY,...(Array.isArray(incoming.foodLibrary)?incoming.foodLibrary:[])];state.meals=Array.isArray(incoming.meals)?incoming.meals:[];state.weights=(Array.isArray(incoming.weights)?incoming.weights:[]).map((w,i)=>{const safe=(w&&typeof w==='object')?w:{};return {...safe,id:safe.id??(Date.now()+10000+i),value:+safe.value||0,date:safe.date||localIsoDate(),createdAt:Number(safe.createdAt||0)||0}});state.weightUnit='lbs';state._updatedAt=Number(incoming._updatedAt||0);state.meals=state.meals.map((m,i)=>({...m,id:m.id??(Date.now()+i),name:m.name||'Untitled meal',items:Array.isArray(m.items)?m.items.filter(Boolean):[],date:m.date||m.dateTime||m.datetime||'',photo:'',mealType:m.mealType||mealType(m)}))}
+function applyRemoteState(incoming){state.goals={...defaultState.goals,...(incoming.goals||{})};state.foodLibrary=[...DEFAULT_FOOD_LIBRARY,...(Array.isArray(incoming.foodLibrary)?incoming.foodLibrary:[])];state.meals=ensureEmbeddedExcelHistory(Array.isArray(incoming.meals)?incoming.meals:[]);state.weights=(Array.isArray(incoming.weights)?incoming.weights:[]).map((w,i)=>{const safe=(w&&typeof w==='object')?w:{};return {...safe,id:safe.id??(Date.now()+10000+i),value:+safe.value||0,date:safe.date||localIsoDate(),createdAt:Number(safe.createdAt||0)||0}});state.weightUnit='lbs';state._updatedAt=Number(incoming._updatedAt||0);state.meals=state.meals.map((m,i)=>({...m,id:m.id??(Date.now()+i),name:m.name||'Untitled meal',items:Array.isArray(m.items)?m.items.filter(Boolean):[],date:m.date||m.dateTime||m.datetime||'',photo:'',mealType:m.mealType||mealType(m)}))}
 
 function refreshUI(){
   renderDashboard();
