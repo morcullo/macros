@@ -224,6 +224,25 @@
       .meal-type-summary-macros b{font-size:11px;line-height:1;}
       .meal-type-summary-macros em{font-size:7.5px;line-height:1;}
     }
+
+    /* v70: dashboard progress + mobile layout refinements */
+    .metric.protein .bar i{background:var(--green)}
+    .metric.protein.under-goal .value,.metric.protein.under-goal .label{color:var(--red)}
+    .metric.protein.under-goal .bar i{background:var(--red)!important}
+    .metric.protein.over-goal .value,.metric.protein.over-goal .label{color:var(--green)}
+    .metric.protein.over-goal .bar i{background:var(--green)!important}
+    .monthly-controls input{min-width:0;max-width:100%;display:block;overflow:hidden}
+    .monthly-controls{min-width:0}
+    .monthly-controls>*{min-width:0}
+    .meal-type-summary-card{justify-content:center}
+    .meal-type-summary-card>div:last-child{margin-top:18px}
+    @media(max-width:540px){
+      .monthly-controls{grid-template-columns:40px minmax(0,1fr) 40px;gap:7px}
+      .monthly-controls input{padding-left:6px;padding-right:6px;font-size:16px}
+      .icon-month{width:40px;height:40px}
+      .meal-type-summary-card{justify-content:center}
+      .meal-type-summary-card>div:last-child{margin-top:14px}
+    }
   </style>
 </head>
 <body><div class="pull-refresh" id="pullRefresh"><span class="spinner"></span>Refreshing…</div>
@@ -682,7 +701,7 @@ function renderTodayMeals(){
     box.innerHTML=`<div class="empty">No meals logged yet. Tap + to add your first meal.</div>`;
   }
 }
-function setMetric(name,val,goal){const pct=goal>0?(val/goal*100):0,over=val>goal,left=goal-val;const metric=document.querySelector('.metric.'+name);document.getElementById(name+'Val').textContent=over?`${Math.round(val-goal)}g over`:`${Math.round(left)}g`;document.querySelector('.metric.'+name+' .bar i').style.width=Math.min(pct,100)+'%';document.querySelector('.metric.'+name+' .label').textContent=`${Math.round(pct)}% of ${goal}g goal`;metric.classList.toggle('over-goal',over)}
+function setMetric(name,val,goal){const pct=goal>0?(val/goal*100):0,over=val>goal,under=val<goal,left=goal-val;const metric=document.querySelector('.metric.'+name);document.getElementById(name+'Val').textContent=over?`${Math.round(val-goal)}g over`:`${Math.round(left)}g`;document.querySelector('.metric.'+name+' .bar i').style.width=Math.min(pct,100)+'%';document.querySelector('.metric.'+name+' .label').textContent=`${Math.round(pct)}% of ${goal}g goal`;metric.classList.toggle('over-goal',over);metric.classList.toggle('under-goal',name==='protein' && under)}
 function mealTotal(m){
   const items=Array.isArray(m&&m.items)?m.items:[];
   return items.reduce((a,i)=>{
