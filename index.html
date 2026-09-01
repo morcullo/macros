@@ -1167,13 +1167,26 @@ function renderFoodOptions(input){
   menu.innerHTML=matches+ai;
   menu.classList.add('open');
 }
+// Close food suggestion menus whenever the user taps/clicks outside the active food text box or its menu.
+document.addEventListener('pointerdown', (e)=>{
+  if(e.target.closest('.food-name-wrap')) return;
+  document.querySelectorAll('.food-reuse-menu.open').forEach(menu=>{
+    menu.classList.remove('open');
+    menu.innerHTML='';
+  });
+});
 function estimateFoodWithChatGPT(btn){
   const item=btn.closest('.food-item');
   const input=item?.querySelector('.f-name');
   if(!input||!input.value.trim())return;
   const food=input.value.trim();
   const menu=item.querySelector('.food-reuse-menu');
-  const original=btn.innerHTML;btn.disabled=true;btn.innerHTML='<strong>✨ Estimating…</strong><small>ChatGPT is calculating a reasonable estimate</small>';
+  const original=btn.innerHTML;
+  // Close the suggestion popover immediately when the AI estimate is selected.
+  // The estimator runs asynchronously, so leaving the menu open makes it appear stuck.
+  menu.classList.remove('open');
+  menu.innerHTML='';
+  btn.disabled=true;btn.innerHTML='<strong>✨ Estimating…</strong><small>ChatGPT is calculating a reasonable estimate</small>';
   if(!sheetSyncUrl){btn.disabled=false;btn.innerHTML=original;showToast('Google Sheets connection is required for AI estimates');return;}
   const callback='__macroFoodCb_'+Date.now();
   let finished=false;
