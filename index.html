@@ -157,6 +157,26 @@
     .meal-type-summary-macros{margin-top:22px;transform:translateY(-10px)}
     .meal-type-summary-macros span{padding-bottom:0}
 
+    /* v49: compact meal-type summary content so every value + label stays inside cards */
+    .meal-type-summary-card{
+      box-sizing:border-box;
+      padding:14px 16px 14px;
+      overflow:hidden;
+    }
+    .meal-type-summary-top{gap:3px;flex:0 0 auto;}
+    .meal-type-summary-icon{width:40px;height:40px;flex-basis:40px;}
+    .meal-type-summary-icon svg{width:40px;height:40px;}
+    .meal-type-summary-name{font-size:17px;line-height:1.05;font-weight:700;}
+    .meal-type-summary-count{font-size:10px;line-height:1.1;margin-top:2px;}
+    .meal-type-summary-card>div:last-child{margin-top:auto;flex:0 0 auto;}
+    .meal-type-summary-card>div:last-child::before{margin:0 12px 13px;}
+    .meal-type-summary-cal{font-size:28px;line-height:1;}
+    .meal-type-summary-cal span{font-size:11px;margin-left:2px;}
+    .meal-type-summary-macros{margin-top:13px;transform:none;font-size:9px;line-height:1;}
+    .meal-type-summary-macros span{gap:3px;padding:0;line-height:1;}
+    .meal-type-summary-macros b{font-size:12px;line-height:1;}
+    .meal-type-summary-macros em{font-size:8px;line-height:1;}
+
     /* v48: compact mobile meal-type cards so all content stays inside the square */
     @media(max-width:540px){
       .meal-type-summary{gap:10px}
@@ -180,6 +200,29 @@
       .meal-type-summary-macros span{gap:3px;padding-bottom:0}
       .meal-type-summary-macros b{font-size:12px;line-height:1}
       .meal-type-summary-macros em{font-size:9px;line-height:1}
+    }
+    @media(max-width:540px){
+      .meal-type-summary{gap:10px;}
+      .meal-type-summary-card{
+        aspect-ratio:1 / 1;
+        min-height:0;
+        height:auto;
+        padding:9px 9px 10px;
+        box-sizing:border-box;
+      }
+      .meal-type-summary-top{gap:2px;}
+      .meal-type-summary-icon{width:30px;height:30px;flex-basis:30px;}
+      .meal-type-summary-icon svg{width:30px;height:30px;}
+      .meal-type-summary-name{font-size:15px;line-height:1.05;font-weight:650;}
+      .meal-type-summary-count{font-size:8.5px;line-height:1.05;margin-top:2px;}
+      .meal-type-summary-card>div:last-child{margin-top:auto;}
+      .meal-type-summary-card>div:last-child::before{margin:0 8px 9px;}
+      .meal-type-summary-cal{font-size:24px;line-height:1;}
+      .meal-type-summary-cal span{font-size:9px;margin-left:2px;}
+      .meal-type-summary-macros{margin-top:10px;font-size:8px;transform:none;line-height:1;}
+      .meal-type-summary-macros span{gap:2px;padding:0;line-height:1;}
+      .meal-type-summary-macros b{font-size:11px;line-height:1;}
+      .meal-type-summary-macros em{font-size:7.5px;line-height:1;}
     }
   </style>
 </head>
