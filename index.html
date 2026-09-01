@@ -456,11 +456,77 @@ function setSyncStatus(text, cls=''){const el=document.getElementById('syncStatu
 function updateSyncUI(){if(sheetSyncUrl)setSyncStatus('Google Sheets sync configured in index.html.','connected')}
 function connectSheet(){loadFromSheet(true)}
 let remoteLoadInFlight=false;
-function loadFromSheet(showToastOnSuccess=false){if(!sheetSyncUrl||remoteLoadInFlight)return;remoteLoadInFlight=true;setSyncStatus('Loading from Google Sheets…');const callback='__macroSheetCb_'+Date.now();window[callback]=(incoming)=>{try{delete window[callback];if(incoming&&incoming.__empty){setSyncStatus('Connected — your sheet is empty.','connected');state.meals=ensureEmbeddedExcelHistory(state.meals);persistLocalOnly();refreshUI();if(!state.weights.length)syncToSheet(true);return}if(incoming&&incoming.meals){const remoteStamp=Number(incoming._updatedAt||0);if(remoteStamp>=lastLocalMutation){const beforeIds=new Set((state.meals||[]).map(m=>Number(m&&m.id)));applyRemoteState(incoming);const afterIds=new Set((state.meals||[]).map(m=>Number(m&&m.id)));const embeddedWasAdded=[...afterIds].some(id=>!beforeIds.has(id)&&String(id).length);persistLocalOnly();refreshUI();lastLocalMutation=remoteStamp;localStorage.setItem(KEY+'_updatedAt',String(remoteStamp));clearSyncPending();if(embeddedWasAdded){setTimeout(()=>syncToSheet(true),100)}}setSyncStatus('Connected — synced with Google Sheets.','connected');if(showToastOnSuccess)showToast('Google Sheet connected')}else throw new Error('The sheet response was not valid app data.')}catch(err){console.error(err);setSyncStatus('Could not read the Google Sheet.','error')}finally{remoteLoadInFlight=false}};const script=document.createElement('script');script.src=sheetSyncUrl+'?callback='+encodeURIComponent(callback)+'&t='+Date.now();script.onerror=()=>{delete window[callback];remoteLoadInFlight=false;setSyncStatus('Could not connect. Check the deployment URL and access setting.','error')};document.body.appendChild(script)}
+function normalizeRemoteMeals(meals){return ensureEmbeddedExcelHistory(Array.isArray(meals)?meals:[]).map((m,i)=>({...m,id:m.id??(Date.now()+i),name:m.name||'Untitled meal',items:Array.isArray(m.items)?m.items.filter(Boolean):[],date:m.date||m.dateTime||m.datetime||'',photo:'',mealType:m.mealType||mealType(m)}))}
+function mergeFoodLibraries(local,remote){const out=[];const seen=new Set();[...(Array.isArray(local)?local:[]),...(Array.isArray(remote)?remote:[])].forEach(f=>{if(!f||!String(f.name||'').trim())return;const key=String(f.name).trim().toLowerCase();if(!seen.has(key)){seen.add(key);out.push(f)}});return out}
+function mergeMeals(local,remote){
+  const map=new Map();
+  [...(Array.isArray(local)?local:[]),...(Array.isArray(remote)?remote:[])].forEach(m=>{
+    if(!m)return;
+    const id=String(m.id??'');
+    if(!id)return;
+    const existing=map.get(id);
+    if(!existing){map.set(id,m);return}
+    const a=Number(existing.updatedAt||existing.createdAt||0), b=Number(m.updatedAt||m.createdAt||0);
+    map.set(id,b>=a?m:existing);
+  });
+  return ensureEmbeddedExcelHistory([...map.values()]);
+}
+function mergeStates(local,incoming){
+  const remote=incoming||{};
+  const localStamp=Number(local&&local._updatedAt||0), remoteStamp=Number(remote._updatedAt||0);
+  const newer=remoteStamp>=localStamp?remote:local;
+  return {
+    ...local,
+    goals:{...defaultState.goals,...(newer.goals||local.goals||{})},
+    foodLibrary:mergeFoodLibraries(local&&local.foodLibrary,remote.foodLibrary),
+    meals:mergeMeals(local&&local.meals,remote.meals),
+    weights:(remoteStamp>=localStamp?(Array.isArray(remote.weights)?remote.weights:[]):(Array.isArray(local&&local.weights)?local.weights:[])),
+    weightUnit:'lbs',
+    _updatedAt:Math.max(localStamp,remoteStamp)
+  };
+}
+function loadFromSheet(showToastOnSuccess=false){
+  if(!sheetSyncUrl||remoteLoadInFlight)return;
+  remoteLoadInFlight=true;setSyncStatus('Loading from Google Sheets…');
+  const callback='__macroSheetCb_'+Date.now();
+  window[callback]=(incoming)=>{
+    try{
+      delete window[callback];
+      const before=JSON.stringify({goals:state.goals,foodLibrary:state.foodLibrary,meals:state.meals,weights:state.weights,weightUnit:state.weightUnit});
+      const localSnapshot={goals:state.goals,foodLibrary:state.foodLibrary,meals:state.meals,weights:state.weights,weightUnit:state.weightUnit,_updatedAt:lastLocalMutation};
+      if(incoming&&incoming.__empty){
+        state.meals=ensureEmbeddedExcelHistory(state.meals);
+        persistLocalOnly();refreshUI();
+        setSyncStatus('Connected — uploading local data to Google Sheets…','connected');
+        setTimeout(()=>syncToSheet(true),100);
+        return;
+      }
+      if(incoming&&incoming.meals){
+        const remoteStamp=Number(incoming._updatedAt||0);
+        const merged=mergeStates(localSnapshot,incoming);
+        const after=JSON.stringify({goals:merged.goals,foodLibrary:merged.foodLibrary,meals:merged.meals,weights:merged.weights,weightUnit:merged.weightUnit});
+        state.goals=merged.goals;state.foodLibrary=merged.foodLibrary;state.meals=merged.meals;state.weights=merged.weights;state.weightUnit='lbs';
+        state._updatedAt=Math.max(lastLocalMutation,remoteStamp);
+        persistLocalOnly();refreshUI();
+        const localHadUnique=after!==JSON.stringify({goals:incoming.goals,foodLibrary:incoming.foodLibrary,meals:normalizeRemoteMeals(incoming.meals),weights:incoming.weights||[],weightUnit:incoming.weightUnit||'lbs'});
+        lastLocalMutation=Math.max(lastLocalMutation,remoteStamp);
+        localStorage.setItem(KEY+'_updatedAt',String(lastLocalMutation));
+        clearSyncPending();
+        if(localHadUnique || before!==after){setTimeout(()=>syncToSheet(true),100)}
+        setSyncStatus('Connected — synced across devices.','connected');
+        if(showToastOnSuccess)showToast('Google Sheet connected');
+      }else throw new Error('The sheet response was not valid app data.');
+    }catch(err){console.error(err);setSyncStatus('Could not read the Google Sheet.','error')}
+    finally{remoteLoadInFlight=false}
+  };
+  const script=document.createElement('script');script.src=sheetSyncUrl+'?callback='+encodeURIComponent(callback)+'&t='+Date.now();
+  script.onerror=()=>{delete window[callback];remoteLoadInFlight=false;setSyncStatus('Could not connect. Check the deployment URL and access setting.','error')};
+  document.body.appendChild(script)
+}
 function persistLocalOnly(){localStorage.setItem(KEY,JSON.stringify(state))}
 async function syncToSheet(force=false){if(!sheetSyncUrl)return;if(syncInFlight){syncQueued=true;return}syncInFlight=true;setSyncStatus('Saving to Google Sheets…');try{const body=new URLSearchParams();body.set('state',JSON.stringify(state));await fetch(sheetSyncUrl,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded;charset=UTF-8'},body,keepalive:true,mode:'no-cors'});setSyncStatus('Connected — changes synced to Google Sheets.','connected');clearSyncPending()}catch(err){console.error(err);setSyncStatus('Saved locally, but Google Sheets sync failed.','error')}finally{syncInFlight=false;if(syncQueued){syncQueued=false;setTimeout(()=>syncToSheet(true),50)}}}
 function startSheetPolling(){if(!sheetSyncUrl)return;setInterval(()=>{if(!document.hidden&&!syncInFlight&&!remoteLoadInFlight&&localStorage.getItem(KEY+'_syncPending')!=='1')loadFromSheet(false)},3000)}
-function applyRemoteState(incoming){state.goals={...defaultState.goals,...(incoming.goals||{})};state.foodLibrary=[...DEFAULT_FOOD_LIBRARY,...(Array.isArray(incoming.foodLibrary)?incoming.foodLibrary:[])];state.meals=ensureEmbeddedExcelHistory(Array.isArray(incoming.meals)?incoming.meals:[]);state.weights=(Array.isArray(incoming.weights)?incoming.weights:[]).map((w,i)=>{const safe=(w&&typeof w==='object')?w:{};return {...safe,id:safe.id??(Date.now()+10000+i),value:+safe.value||0,date:safe.date||localIsoDate(),createdAt:Number(safe.createdAt||0)||0}});state.weightUnit='lbs';state._updatedAt=Number(incoming._updatedAt||0);state.meals=state.meals.map((m,i)=>({...m,id:m.id??(Date.now()+i),name:m.name||'Untitled meal',items:Array.isArray(m.items)?m.items.filter(Boolean):[],date:m.date||m.dateTime||m.datetime||'',photo:'',mealType:m.mealType||mealType(m)}))}
+function applyRemoteState(incoming){const merged=mergeStates({goals:state.goals,foodLibrary:state.foodLibrary,meals:state.meals,weights:state.weights,weightUnit:state.weightUnit,_updatedAt:lastLocalMutation},incoming);state.goals=merged.goals;state.foodLibrary=merged.foodLibrary;state.meals=merged.meals;state.weights=merged.weights;state.weightUnit='lbs';state._updatedAt=merged._updatedAt;}
 
 function refreshUI(){
   renderDashboard();
