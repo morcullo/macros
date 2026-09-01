@@ -238,8 +238,8 @@
     .meal-type-summary-card{justify-content:center}
     .meal-type-summary-card>div:last-child{margin-top:18px}
     @media(max-width:540px){
-      .monthly-controls{grid-template-columns:40px minmax(0,1fr) 40px;gap:7px}
-      .monthly-controls input{padding-left:6px;padding-right:6px;font-size:16px}
+      .monthly-controls{grid-template-columns:36px minmax(0,1fr) 36px;gap:6px;width:100%;}
+      .monthly-controls input{padding-left:4px;padding-right:4px;font-size:16px;min-width:0!important;width:100%!important;max-width:100%!important;inline-size:100%!important;overflow:hidden}
       .icon-month{width:40px;height:40px}
       .meal-type-summary-card{justify-content:center}
       .meal-type-summary-card>div:last-child{margin-top:14px}
@@ -420,7 +420,9 @@
       .goal-card{padding:14px}
       .goal-card h2{font-size:19px}
       .meals-toolbar{display:grid;grid-template-columns:1fr 120px}
-      .filter{min-width:0;width:100%;padding-right:30px}
+      .meals-toolbar{display:grid;grid-template-columns:minmax(0,1fr) 140px;gap:8px;align-items:stretch}
+      .search{min-width:0;width:100%;box-sizing:border-box}
+      .filter{min-width:0;width:100%;max-width:140px;box-sizing:border-box;padding-left:11px;padding-right:28px;font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
       .full-meals{padding:0 14px}
       .meal-detail{grid-template-columns:46px 1fr auto}
       .meal-detail .meal-kcal{grid-column:auto}
@@ -480,9 +482,10 @@
 
     /* v73.1: orange-forward navigation + completely new meal-type icon language */
     :root{--orange:#ff7a2f;--orange2:#ff9b5c}
-    .nav-item{color:var(--orange)!important;background:transparent!important}
+    .nav-item{color:#7f858a!important;background:transparent!important}
     .nav-item svg{stroke:currentColor!important}
     .nav-item.active{color:var(--orange)!important;background:rgba(255,122,47,.10)!important}
+    .nav-item.active svg{stroke:var(--orange)!important}
     .nav-item.add{color:#101214!important;background:var(--orange)!important;border:0!important;box-shadow:none!important}
     .nav-item.add:hover,.nav-item.add:focus-visible{background:var(--orange2)!important;box-shadow:none!important}
     .nav-item.add svg{stroke:#101214!important}
@@ -515,6 +518,23 @@
       .meal-view-food-macros{gap:6px;font-size:10px}
       .meal-view-food-macros em{font-size:8px}
     }
+
+    /* v74.0 mobile layout fixes */
+    .monthly-controls{grid-template-columns:36px minmax(0,1fr) 36px!important;gap:6px!important;min-width:0!important;width:100%!important;box-sizing:border-box!important}
+    .monthly-controls .icon-month{width:36px!important;min-width:36px!important;max-width:36px!important;height:40px!important;box-sizing:border-box!important;padding:0!important;display:grid!important;place-items:center!important}
+    .monthly-controls input{min-width:0!important;width:100%!important;max-width:100%!important;inline-size:100%!important;box-sizing:border-box!important;display:block!important;overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important;-webkit-appearance:none!important;appearance:none!important}
+    @media(max-width:540px){
+      .monthly-macros-modal{width:100%;max-width:100%;box-sizing:border-box;padding-left:12px;padding-right:12px}
+      .monthly-controls{grid-template-columns:36px minmax(0,1fr) 36px!important;gap:6px!important}
+      .monthly-controls input{font-size:16px!important;padding:9px 3px!important;text-align:center!important}
+      .meals-toolbar{display:grid!important;grid-template-columns:minmax(0,1fr) 132px!important;gap:8px!important;width:100%!important;box-sizing:border-box!important}
+      .meals-toolbar .search,.meals-toolbar .filter{min-width:0!important;width:100%!important;max-width:100%!important;box-sizing:border-box!important}
+      .meals-toolbar .filter{padding-left:10px!important;padding-right:25px!important;font-size:15px!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important}
+    }
+
+    /* v74.1: clearer macro goal readouts */
+    .metric .value{white-space:nowrap}
+    .metric .label{line-height:1.35}
 </style>
 </head>
 <body><div class="pull-refresh" id="pullRefresh"><span class="spinner"></span>Refreshing…</div>
@@ -540,9 +560,6 @@
         <div class="metric protein"><div class="eyebrow">Protein</div><div class="value" id="proteinVal">84g</div><div class="label">of 160g goal</div><div class="bar"><i></i></div></div>
         <div class="metric carbs"><div class="eyebrow">Carbs</div><div class="value" id="carbsVal">135g</div><div class="label">of 300g goal</div><div class="bar"><i></i></div></div>
         <div class="metric fat"><div class="eyebrow">Fat</div><div class="value" id="fatVal">41g</div><div class="label">of 90g goal</div><div class="bar"><i></i></div></div>
-      </div>
-      <div class="section">
-        <div class="card"><div class="section-head"><div><div class="eyebrow">Today</div><h2>Macro split</h2></div></div><div style="margin-top:18px"><div class="hero-meta"><span>Protein</span><b id="splitProtein">0%</b></div><div class="progress"><i id="splitProteinBar" style="width:0%;background:var(--red)"></i></div><div class="hero-meta"><span>Carbs</span><b id="splitCarbs">0%</b></div><div class="progress"><i id="splitCarbsBar" style="width:0%;background:var(--blue)"></i></div><div class="hero-meta"><span>Fat</span><b id="splitFat">0%</b></div><div class="progress"><i id="splitFatBar" style="width:0%;background:var(--green)"></i></div></div></div>
       </div>
       <div class="section"><div class="section-head"><div><div class="eyebrow">Latest</div><h2>Today’s meals</h2></div><button class="link" onclick="navigate('meals')">See all →</button></div><div class="card" id="todayMeals"></div></div>
       <div class="section"><div class="section-head"><div><div class="eyebrow">By meal type</div><h2>Today’s macro summary</h2></div></div><div class="meal-type-summary" id="mealTypeSummary"></div></div>
@@ -908,7 +925,7 @@ function renderMonthlyMacros(){
   for(let d=1;d<=days;d++){const key=`${year}-${String(month).padStart(2,'0')}-${String(d).padStart(2,'0')}`;const t=totalsFor(key);if(t.calories||t.protein||t.carbs||t.fat)loggedDays++;sum.calories+=t.calories;sum.protein+=t.protein;sum.carbs+=t.carbs;sum.fat+=t.fat;const label=new Date(year,month-1,d,12).toLocaleDateString(undefined,{weekday:'short',month:'short',day:'numeric'});rows.push(`<div class="monthly-row"><span>${label}</span><span>${Math.round(t.calories)}</span><span>${Math.round(t.protein)}g</span><span>${Math.round(t.carbs)}g</span><span>${Math.round(t.fat)}g</span></div>`)}
   const list=document.getElementById('monthlyMacrosList');if(list)list.innerHTML=`<div class="monthly-row head"><span>Date</span><span>kcal</span><span>P</span><span>C</span><span>F</span></div>${rows.join('')}`;
   const meta=document.getElementById('monthlyMacrosMeta');if(meta)meta.textContent=`${monthLabel(monthlyMacrosMonth)} · ${loggedDays} day${loggedDays===1?'':'s'} with food logged`;
-  const avg=document.getElementById('monthlyMacrosAverage');const denom=days;const a={calories:sum.calories/denom,protein:sum.protein/denom,carbs:sum.carbs/denom,fat:sum.fat/denom};if(avg)avg.innerHTML=`<strong>Average per calendar day</strong><div class="monthly-average-grid"><div><strong>${Math.round(a.calories)}</strong><small>kcal</small></div><div><strong>${Math.round(a.protein)}g</strong><small>protein</small></div><div><strong>${Math.round(a.carbs)}g</strong><small>carbs</small></div><div><strong>${Math.round(a.fat)}g</strong><small>fat</small></div></div>`;
+  const avg=document.getElementById('monthlyMacrosAverage');const denom=loggedDays;const a={calories:denom?sum.calories/denom:0,protein:denom?sum.protein/denom:0,carbs:denom?sum.carbs/denom:0,fat:denom?sum.fat/denom:0};if(avg)avg.innerHTML=`<strong>Average per logged day</strong><div class="monthly-average-grid"><div><strong>${Math.round(a.calories)}</strong><small>kcal</small></div><div><strong>${Math.round(a.protein)}g</strong><small>protein</small></div><div><strong>${Math.round(a.carbs)}g</strong><small>carbs</small></div><div><strong>${Math.round(a.fat)}g</strong><small>fat</small></div></div>`;
 }
 function openMonthlyMacros(){monthlyMacrosMonth=isoDate(currentDate).slice(0,7);renderMonthlyMacros();document.getElementById('monthlyMacrosBackdrop').classList.add('open')}
 function closeMonthlyMacros(){document.getElementById('monthlyMacrosBackdrop').classList.remove('open')}
@@ -935,9 +952,6 @@ function renderDashboard(){
   document.getElementById('ringPct').textContent=Math.round(rawPct)+'%';
   setMetric('protein',t.protein,g.protein);setMetric('carbs',t.carbs,g.carbs);setMetric('fat',t.fat,g.fat);
   const weeklyGoal=document.getElementById('weeklyGoalText'); if(weeklyGoal) weeklyGoal.textContent=g.calories.toLocaleString();
-  const macroTotal=t.protein+t.carbs+t.fat;
-  const split={protein:macroTotal?t.protein/macroTotal*100:0,carbs:macroTotal?t.carbs/macroTotal*100:0,fat:macroTotal?t.fat/macroTotal*100:0};
-  ['protein','carbs','fat'].forEach(k=>{document.getElementById('split'+k[0].toUpperCase()+k.slice(1)).textContent=Math.round(split[k])+'%';document.getElementById('split'+k[0].toUpperCase()+k.slice(1)+'Bar').style.width=split[k]+'%'});
   renderTodayMeals();
   renderMealTypeSummary();
 }
@@ -988,7 +1002,22 @@ function renderTodayMeals(){
     box.innerHTML=`<div class="empty">No meals logged yet. Tap + to add your first meal.</div>`;
   }
 }
-function setMetric(name,val,goal){const pct=goal>0?(val/goal*100):0,over=val>goal,under=val<goal,left=goal-val;const metric=document.querySelector('.metric.'+name);document.getElementById(name+'Val').textContent=over?`${Math.round(val-goal)}g over`:`${Math.round(left)}g`;document.querySelector('.metric.'+name+' .bar i').style.width=Math.min(pct,100)+'%';document.querySelector('.metric.'+name+' .label').textContent=`${Math.round(pct)}% of ${goal}g goal`;metric.classList.toggle('over-goal',over);metric.classList.toggle('under-goal',name==='protein' && under)}
+function setMetric(name,val,goal){
+  const pct=goal>0?(val/goal*100):0;
+  const over=val>goal;
+  const metric=document.querySelector('.metric.'+name);
+  if(!metric)return;
+  const valueEl=document.getElementById(name+'Val');
+  const labelEl=metric.querySelector('.label');
+  const barEl=metric.querySelector('.bar i');
+  const logged=Math.round(val);
+  const target=Math.round(goal);
+  valueEl.textContent=`${logged} / ${target}g`;
+  labelEl.textContent=over?`${Math.round(pct)}% · ${Math.round(val-goal)}g over`:val<goal?`${Math.round(pct)}% · ${Math.round(goal-val)}g under`:`100% · On goal`;
+  barEl.style.width=Math.min(pct,100)+'%';
+  metric.classList.toggle('over-goal',over);
+  metric.classList.toggle('under-goal',val<goal);
+}
 function mealTotal(m){
   const items=Array.isArray(m&&m.items)?m.items:[];
   return items.reduce((a,i)=>{
