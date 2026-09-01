@@ -156,6 +156,31 @@
     .meal-type-summary-cal{line-height:1}
     .meal-type-summary-macros{margin-top:22px;transform:translateY(-10px)}
     .meal-type-summary-macros span{padding-bottom:0}
+
+    /* v48: compact mobile meal-type cards so all content stays inside the square */
+    @media(max-width:540px){
+      .meal-type-summary{gap:10px}
+      .meal-type-summary-card{
+        aspect-ratio:1 / 1;
+        min-height:0;
+        height:auto;
+        padding:10px 10px 12px;
+        box-sizing:border-box;
+      }
+      .meal-type-summary-top{gap:2px}
+      .meal-type-summary-icon{width:34px;height:34px;flex-basis:34px}
+      .meal-type-summary-icon svg{width:34px;height:34px}
+      .meal-type-summary-name{font-size:16px;line-height:1.05;font-weight:650}
+      .meal-type-summary-count{font-size:9px;line-height:1.1;margin-top:2px}
+      .meal-type-summary-card>div:last-child{margin-top:10px}
+      .meal-type-summary-card>div:last-child::before{margin:0 10px 11px}
+      .meal-type-summary-cal{font-size:27px;line-height:1}
+      .meal-type-summary-cal span{font-size:10px;margin-left:2px}
+      .meal-type-summary-macros{margin-top:12px;transform:none;font-size:9px}
+      .meal-type-summary-macros span{gap:3px;padding-bottom:0}
+      .meal-type-summary-macros b{font-size:12px;line-height:1}
+      .meal-type-summary-macros em{font-size:9px;line-height:1}
+    }
   </style>
 </head>
 <body><div class="pull-refresh" id="pullRefresh"><span class="spinner"></span>Refreshing…</div>
