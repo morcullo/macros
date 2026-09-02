@@ -15,14 +15,63 @@ const FOODS_SHEET = 'Food Items';
 const FOOD_LIBRARY_SHEET = 'Food Library';
 const WEIGHT_SHEET = 'Weight';
 const GOALS_SHEET = 'Goals';
+const STATE_CACHE_KEY = 'macro_tracker_state_v2';
+const STATE_CACHE_TTL = 600; // 10 minutes
 
 function doGet(e) {
   const action = e && e.parameter && e.parameter.action;
   const cb = e && e.parameter && e.parameter.callback;
   if (action === 'estimateFood') return estimateFood_(e);
-  const state = readState_();
-  if (cb) return ContentService.createTextOutput(cb + '(' + JSON.stringify(state) + ')').setMimeType(ContentService.MimeType.JAVASCRIPT);
+
+  // Use a compressed script cache for normal app reads. This avoids opening
+  // and parsing the spreadsheet on most startups and background refreshes.
+  const state = readCachedState_();
+
+  if (cb) {
+    return ContentService
+      .createTextOutput(cb + '(' + JSON.stringify(state) + ')')
+      .setMimeType(ContentService.MimeType.JAVASCRIPT);
+  }
   return json_(state);
+}
+
+function readCachedState_() {
+  const cache = CacheService.getScriptCache();
+  const cached = cache.get(STATE_CACHE_KEY);
+
+  if (cached) {
+    try {
+      return JSON.parse(decodeCachedState_(cached));
+    } catch (err) {
+      console.warn('State cache parse failed: ' + err);
+    }
+  }
+
+  const state = readState_();
+
+  if (state && !state.__empty) {
+    try {
+      cache.put(
+        STATE_CACHE_KEY,
+        encodeCachedState_(JSON.stringify(state)),
+        STATE_CACHE_TTL
+      );
+    } catch (err) {
+      console.warn('State cache write skipped: ' + err);
+    }
+  }
+
+  return state;
+}
+
+function encodeCachedState_(json) {
+  const blob = Utilities.gzip(Utilities.newBlob(json, 'application/json'));
+  return Utilities.base64Encode(blob.getBytes());
+}
+
+function decodeCachedState_(encoded) {
+  const bytes = Utilities.base64Decode(encoded);
+  return Utilities.ungzip(Utilities.newBlob(bytes)).getDataAsString();
 }
 
 
@@ -131,6 +180,18 @@ function doPost(e) {
     }
 
     writeState_(incoming);
+
+    // Refresh the read cache immediately after a successful write so the
+    // next device/startup sees the newest state without another sheet read.
+    try {
+      CacheService.getScriptCache().put(
+        STATE_CACHE_KEY,
+        encodeCachedState_(JSON.stringify(incoming)),
+        STATE_CACHE_TTL
+      );
+    } catch (cacheErr) {
+      console.warn('State cache update skipped: ' + cacheErr);
+    }
 
     // Read the state back from Sheets before reporting success. This makes
     // the server-side save atomic from the app's point of view: if the write
