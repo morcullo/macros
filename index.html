@@ -761,38 +761,53 @@ function applyState(incoming){
 function setSyncStatus(text, cls=''){const el=document.getElementById('syncStatus');if(el){el.textContent=text;el.className='sync-status '+cls}}
 function updateSyncUI(){if(sheetSyncUrl)setSyncStatus('Google Sheets is the only data source.','connected')}
 function connectSheet(){loadFromSheet(true)}
+let remoteLoadWaiters=[];
+function notifyRemoteLoad(incoming){
+  const waiters=remoteLoadWaiters.splice(0);
+  waiters.forEach(fn=>{try{fn(incoming||null)}catch(err){console.error(err)}});
+}
 function loadFromSheet(showToastOnSuccess=false,afterLoad=null){
-  if(!sheetSyncUrl){setSyncStatus('Google Sheets URL is not configured.','error');if(afterLoad)afterLoad();return;}
-  if(remoteLoadInFlight){if(afterLoad)afterLoad();return;}
+  if(!sheetSyncUrl){setSyncStatus('Google Sheets URL is not configured.','error');if(afterLoad)afterLoad(null);return;}
+  if(remoteLoadInFlight){if(afterLoad)remoteLoadWaiters.push(afterLoad);return;}
   remoteLoadInFlight=true;setSyncStatus('Loading from Google Sheets…');
   const callback='__macroSheetCb_'+Date.now();
   window[callback]=(incoming)=>{
+    let result=incoming||null;
     try{
       delete window[callback];
       if(incoming&&Array.isArray(incoming.meals)){
-        applyState(incoming);
-        appDataLoaded=true;
-        refreshUI();
+        applyState(incoming); appDataLoaded=true; refreshUI();
         lastLocalMutation=Math.max(lastLocalMutation,Number(incoming._updatedAt||0));
         setSyncStatus('Connected — data loaded from Google Sheets.','connected');
         if(showToastOnSuccess)showToast('Google Sheet connected');
-        if(afterLoad)afterLoad();
       }else if(incoming&&incoming.__empty){
-        // An empty Sheet is authoritative because Sheets is the sole source of truth.
         state.meals=[];state.weights=[];state.foodLibrary=[];state._deletedMealIds=[];
-        state._updatedAt=Number(incoming._updatedAt||0);
-        appDataLoaded=true;refreshUI();
+        state._updatedAt=Number(incoming._updatedAt||0); appDataLoaded=true; refreshUI();
         setSyncStatus('Connected — Google Sheet is empty.','connected');
-        if(afterLoad)afterLoad();
       }else throw new Error('The sheet response was not valid app data.');
-    }catch(err){console.error(err);setSyncStatus('Could not read the Google Sheet.','error');if(afterLoad)afterLoad()}
-    finally{remoteLoadInFlight=false}
+    }catch(err){
+      console.error(err); result=null;
+      setSyncStatus('Could not read the Google Sheet.','error');
+    }finally{
+      remoteLoadInFlight=false;
+      if(afterLoad)remoteLoadWaiters.push(afterLoad);
+      notifyRemoteLoad(result);
+    }
   };
   const script=document.createElement('script');
   script.src=sheetSyncUrl+'?callback='+encodeURIComponent(callback)+'&t='+Date.now();
-  script.onerror=()=>{delete window[callback];remoteLoadInFlight=false;setSyncStatus('Could not connect. Check the deployment URL and access setting.','error');if(afterLoad)afterLoad()};
+  script.onerror=()=>{
+    delete window[callback]; remoteLoadInFlight=false;
+    setSyncStatus('Could not connect. Check the deployment URL and access setting.','error');
+    if(afterLoad)remoteLoadWaiters.push(afterLoad);
+    notifyRemoteLoad(null);
+  };
   document.body.appendChild(script);
 }
+function loadFromSheetAsync(showToastOnSuccess=false){
+  return new Promise(resolve=>loadFromSheet(showToastOnSuccess,incoming=>resolve(incoming)));
+}
+
 function buildPayload(){
   return {
     goals:state.goals,
@@ -805,8 +820,13 @@ function buildPayload(){
   };
 }
 async function postStateToSheet(){
-  const body=new URLSearchParams();body.set('state',JSON.stringify(buildPayload()));
-  await fetch(sheetSyncUrl,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded;charset=UTF-8'},body,keepalive:true,mode:'no-cors'});
+  const body=new URLSearchParams();
+  body.set('state',JSON.stringify(buildPayload()));
+  await fetch(sheetSyncUrl,{
+    method:'POST',
+    headers:{'Content-Type':'application/x-www-form-urlencoded;charset=UTF-8'},
+    body,mode:'no-cors',cache:'no-store'
+  });
 }
 function persist(){
   lastLocalMutation=Math.max(Date.now(),lastLocalMutation+1);
@@ -814,33 +834,67 @@ function persist(){
   syncToSheet();
 }
 function persistLocalOnly(){ /* intentionally disabled: Google Sheets is the sole data store */ }
+function syncDelay(ms){return new Promise(resolve=>setTimeout(resolve,ms))}
+function remoteContainsMutation(remote,snapshot){
+  if(!remote)return false;
+  const target=Number(snapshot._updatedAt||0);
+  if(Number(remote._updatedAt||0)<target)return false;
+  const deleted=new Set((snapshot._deletedMealIds||[]).map(Number));
+  const remoteMeals=Array.isArray(remote.meals)?remote.meals:[];
+  const remoteById=new Map(remoteMeals.map(m=>[Number(m.id),m]));
+  for(const m of (Array.isArray(snapshot.meals)?snapshot.meals:[])){
+    const id=Number(m?.id);
+    if(!Number.isFinite(id)||deleted.has(id))continue;
+    if(Number(m.updatedAt||m.createdAt||0)!==target)continue;
+    const r=remoteById.get(id);
+    if(!r||Number(r.updatedAt||r.createdAt||0)<target)return false;
+  }
+  const remoteDeleted=new Set((remote._deletedMealIds||[]).map(Number));
+  for(const id of deleted)if(!remoteDeleted.has(id))return false;
+  return true;
+}
 async function syncToSheet(force=false){
   if(!sheetSyncUrl||!appDataLoaded)return;
-  const mutationSnapshot={goals:state.goals,foodLibrary:state.foodLibrary,meals:state.meals,weights:state.weights,weightUnit:state.weightUnit,_deletedMealIds:state._deletedMealIds,_updatedAt:lastLocalMutation};
+  const mutationSnapshot=JSON.parse(JSON.stringify({
+    goals:state.goals,foodLibrary:state.foodLibrary,meals:state.meals,
+    weights:state.weights,weightUnit:state.weightUnit,
+    _deletedMealIds:state._deletedMealIds,_updatedAt:lastLocalMutation
+  }));
   if(syncInFlight){syncQueued=true;return;}
   syncInFlight=true;setSyncStatus('Syncing with Google Sheets…');
-  const finish=async()=>{
-    try{
-      // The GET immediately before the POST makes deletes/edits merge with the
-      // latest shared state rather than overwriting another device's changes.
+  try{
+    const remoteBefore=await loadFromSheetAsync(false);
+    if(remoteBefore){
+      const merged=mergeStates(mutationSnapshot,{
+        goals:state.goals,foodLibrary:state.foodLibrary,meals:state.meals,
+        weights:state.weights,weightUnit:state.weightUnit,
+        _deletedMealIds:state._deletedMealIds,_updatedAt:state._updatedAt
+      });
+      state.goals=merged.goals;state.foodLibrary=merged.foodLibrary;state.meals=merged.meals;
+      state.weights=merged.weights;state.weightUnit='lbs';state._deletedMealIds=merged._deletedMealIds;
+      state._updatedAt=Math.max(lastLocalMutation,merged._updatedAt);normalizeStateData();
+    }
+    let confirmed=false;
+    for(let attempt=1;attempt<=3&&!confirmed;attempt++){
       await postStateToSheet();
-      setSyncStatus('Connected — changes synced to Google Sheets.','connected');
-    }catch(err){console.error(err);setSyncStatus('Google Sheets sync failed.','error')}
-    finally{syncInFlight=false;if(syncQueued){syncQueued=false;setTimeout(()=>syncToSheet(true),50)}}
-  };
-  loadFromSheet(false,()=>{
-    // The remote load merges with the in-memory mutation. Equal timestamps favor
-    // the in-memory version, so an edit made just before the GET is not lost.
-    const merged=mergeStates(mutationSnapshot,{goals:state.goals,foodLibrary:state.foodLibrary,meals:state.meals,weights:state.weights,weightUnit:state.weightUnit,_deletedMealIds:state._deletedMealIds,_updatedAt:state._updatedAt});
-    state.goals=merged.goals;state.foodLibrary=merged.foodLibrary;state.meals=merged.meals;state.weights=merged.weights;state.weightUnit='lbs';state._deletedMealIds=merged._deletedMealIds;state._updatedAt=Math.max(lastLocalMutation,merged._updatedAt);
-    normalizeStateData();
-    finish();
-  });
+      await syncDelay(700*attempt);
+      const remoteAfter=await loadFromSheetAsync(false);
+      confirmed=remoteContainsMutation(remoteAfter,mutationSnapshot);
+      if(!confirmed&&attempt<3)await syncDelay(500*attempt);
+    }
+    if(!confirmed)throw new Error('Google Sheets write was not confirmed after retrying.');
+    setSyncStatus('Connected — changes synced to Google Sheets.','connected');
+  }catch(err){
+    console.error('Google Sheets sync failed:',err);
+    setSyncStatus('Google Sheets sync failed — retrying…','error');
+    if(!syncQueued){syncQueued=true;setTimeout(()=>{syncQueued=false;syncToSheet(true)},2500);}
+  }finally{
+    syncInFlight=false;
+    if(syncQueued){syncQueued=false;setTimeout(()=>syncToSheet(true),50);}
+  }
 }
 function startSheetPolling(){
   if(!sheetSyncUrl)return;
-  // Poll less aggressively so startup and user interactions aren't competing
-  // with repeated Google Sheets requests. Visibility is still respected.
   setInterval(()=>{if(!document.hidden&&!syncInFlight&&!remoteLoadInFlight)loadFromSheet(false)},15000);
 }
 function applyRemoteState(incoming){applyState(incoming);refreshUI()}
