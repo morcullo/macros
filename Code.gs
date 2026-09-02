@@ -88,35 +88,104 @@ function estimateFood_(e) {
 
 function doPost(e) {
   const lock = LockService.getScriptLock();
+  let locked = false;
+
   try {
     const raw = e && e.parameter && e.parameter.state;
-    if (!raw) throw new Error('Missing state');
+    if (!raw) throw new Error('Missing state payload.');
+
     const incoming = JSON.parse(raw);
-    lock.waitLock(10000);
-    const ss = SpreadsheetApp.getActiveSpreadsheet();
-    const existing = readState_();
-    const incomingStamp = Number(incoming && incoming._updatedAt || 0);
-    const existingStamp = Number(existing && existing._updatedAt || 0);
-    // Never let an older browser overwrite a newer cloud copy.
-    if (!existing.__empty && existingStamp > incomingStamp) {
-      return json_({ok:true, ignored:true, updatedAt:existingStamp});
+    if (!incoming || typeof incoming !== 'object') {
+      throw new Error('Invalid state payload.');
     }
+
+    // Reject obviously incomplete writes before touching the spreadsheet.
+    if (!Array.isArray(incoming.meals) ||
+        !Array.isArray(incoming.foodLibrary) ||
+        !Array.isArray(incoming.weights)) {
+      throw new Error('Incomplete state payload.');
+    }
+
+    const incomingStamp = Number(incoming._updatedAt || 0);
+    if (!Number.isFinite(incomingStamp) || incomingStamp <= 0) {
+      throw new Error('Invalid state timestamp.');
+    }
+
+    // Serialize all writes so two phones/browsers cannot clear/write the
+    // workbook at the same time.
+    lock.waitLock(30000);
+    locked = true;
+
+    const existing = readState_();
+    const existingStamp = Number(existing && existing._updatedAt || 0);
+
+    // Never allow an older browser snapshot to overwrite a newer cloud copy.
+    if (!existing.__empty && existingStamp > incomingStamp) {
+      return json_({
+        ok: true,
+        saved: false,
+        ignored: true,
+        reason: 'stale',
+        updatedAt: existingStamp
+      });
+    }
+
     writeState_(incoming);
-    return json_({ok:true, updatedAt:incomingStamp});
+
+    // Read the state back from Sheets before reporting success. This makes
+    // the server-side save atomic from the app's point of view: if the write
+    // did not stick, the response is an error instead of a false success.
+    const saved = readState_();
+    const savedStamp = Number(saved && saved._updatedAt || 0);
+
+    if (saved.__empty || savedStamp !== incomingStamp) {
+      throw new Error('Google Sheets did not confirm the saved state.');
+    }
+
+    return json_({
+      ok: true,
+      saved: true,
+      ignored: false,
+      updatedAt: savedStamp,
+      mealCount: Array.isArray(saved.meals) ? saved.meals.length : 0
+    });
+
   } catch (err) {
-    return json_({ok:false, error:String(err)});
+    console.error('doPost failed:', err);
+    return json_({
+      ok: false,
+      saved: false,
+      error: String(err && err.message || err)
+    });
   } finally {
-    try { lock.releaseLock(); } catch (_) {}
+    if (locked) {
+      try { lock.releaseLock(); } catch (_) {}
+    }
   }
 }
 
 function readState_() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheet = ss.getSheetByName(STATE_SHEET);
-  if (!sheet || sheet.getLastRow() < 2) return {__empty:true};
+
+  if (!sheet || sheet.getLastRow() < 2 || sheet.getLastColumn() < 2) {
+    return {__empty:true};
+  }
+
   const raw = sheet.getRange(2, 2).getValue();
   if (!raw) return {__empty:true};
-  try { return JSON.parse(String(raw)); } catch (_) { return {__empty:true}; }
+
+  try {
+    const parsed = JSON.parse(String(raw));
+    if (!parsed || typeof parsed !== 'object') return {__empty:true};
+
+    // Keep the timestamp authoritative from the stored JSON.
+    parsed._updatedAt = Number(parsed._updatedAt || 0);
+    return parsed;
+  } catch (err) {
+    console.error('Could not parse AppState:', err);
+    return {__empty:true};
+  }
 }
 
 function writeState_(state) {
@@ -146,7 +215,7 @@ function writeMeals_(ss, meals) {
     rows.push([m.id || '', m.date || '', m.time || '', m.mealType || '', m.name || '', t.calories, t.protein, t.carbs, t.fat, (m.items || []).length]);
   });
   sh.getRange(1,1,rows.length,rows[0].length).setValues(rows); sh.getRange(1,1,1,rows[0].length).setFontWeight('bold');
-  sh.setFrozenRows(1); sh.autoResizeColumns(1, rows[0].length);
+  sh.setFrozenRows(1);
 }
 
 function writeFoods_(ss, meals) {
@@ -154,7 +223,7 @@ function writeFoods_(ss, meals) {
   const rows = [['Meal ID','Meal Name','Food Item','Calories','Protein (g)','Carbs (g)','Fat (g)']];
   meals.forEach(m => (m.items || []).forEach(i => rows.push([m.id || '', m.name || '', i.name || '', +i.calories || 0, +i.protein || 0, +i.carbs || 0, +i.fat || 0])));
   sh.getRange(1,1,rows.length,rows[0].length).setValues(rows); sh.getRange(1,1,1,rows[0].length).setFontWeight('bold');
-  sh.setFrozenRows(1); sh.autoResizeColumns(1, rows[0].length);
+  sh.setFrozenRows(1);
 }
 
 
@@ -170,13 +239,13 @@ function writeFoodLibrary_(ss, foods) {
     rows.push([name, +i.carbs || 0, +i.protein || 0, +i.fat || 0, +i.calories || 0]);
   });
   sh.getRange(1,1,rows.length,5).setValues(rows); sh.getRange(1,1,1,5).setFontWeight('bold');
-  sh.setFrozenRows(1); sh.autoResizeColumns(1,5);
+  sh.setFrozenRows(1);
 }
 
 function writeWeights_(ss, weights) {
   const sh = getOrCreate_(ss, WEIGHT_SHEET); sh.clearContents();
   const rows = [['Date','Weight (lbs)']].concat(weights.map(w => [w.date || '', +w.value || 0]));
-  sh.getRange(1,1,rows.length,2).setValues(rows); sh.getRange(1,1,1,2).setFontWeight('bold'); sh.setFrozenRows(1); sh.autoResizeColumns(1,2);
+  sh.getRange(1,1,rows.length,2).setValues(rows); sh.getRange(1,1,1,2).setFontWeight('bold'); sh.setFrozenRows(1);
 }
 
 function writeGoals_(ss, goals) {
