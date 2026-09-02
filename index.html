@@ -1238,15 +1238,129 @@ function addFoodRow(data={}){
   el.innerHTML=`<div class="food-top"><div class="field food-name-wrap"><label>Food item</label><input class="f-name" autocomplete="off" placeholder="e.g. Chicken breast" value="${esc(data.name||'')}" oninput="renderFoodOptions(this)" onfocus="renderFoodOptions(this)"><div class="food-reuse-menu"></div></div><button type="button" class="remove" onclick="document.getElementById('${id}').remove()">×</button></div><div class="macro-inputs"><div class="field"><label>Calories</label><input class="f-cal" type="number" min="0" value="${data.calories??''}" placeholder="0"></div><div class="field"><label>Protein (g)</label><input class="f-pro" type="number" min="0" value="${data.protein??''}" placeholder="0"></div><div class="field"><label>Carbs (g)</label><input class="f-carb" type="number" min="0" value="${data.carbs??''}" placeholder="0"></div><div class="field"><label>Fat (g)</label><input class="f-fat" type="number" min="0" value="${data.fat??''}" placeholder="0"></div></div>`;
   document.getElementById('foodList').appendChild(el);
 }
+function normalizeFoodSearchText(value){
+  return String(value||'')
+    .toLowerCase()
+    // Treat punctuation, separators and symbols as spaces.
+    .replace(/[^a-z0-9]+/g,' ')
+    .replace(/\s+/g,' ')
+    .trim();
+}
+
+function foodSearchTokens(value){
+  return normalizeFoodSearchText(value)
+    .split(' ')
+    .filter(Boolean);
+}
+
+function foodEditDistance(a,b){
+  a=String(a||'');b=String(b||'');
+  if(a===b)return 0;
+  if(!a.length)return b.length;
+  if(!b.length)return a.length;
+  if(a.length>b.length){const t=a;a=b;b=t;}
+  let prev=Array.from({length:a.length+1},(_,i)=>i);
+  for(let j=1;j<=b.length;j++){
+    const cur=[j];
+    for(let i=1;i<=a.length;i++){
+      cur[i]=Math.min(
+        cur[i-1]+1,
+        prev[i]+1,
+        prev[i-1]+(a[i-1]===b[j-1]?0:1)
+      );
+    }
+    prev=cur;
+  }
+  return prev[a.length];
+}
+
+function foodTokenSimilarity(queryToken,nameTokens){
+  if(!queryToken)return 0;
+  let best=0;
+  nameTokens.forEach(token=>{
+    if(token===queryToken){best=Math.max(best,1);return;}
+    if(token.includes(queryToken)||queryToken.includes(token)){
+      const shorter=Math.min(token.length,queryToken.length);
+      const longer=Math.max(token.length,queryToken.length);
+      best=Math.max(best,shorter/longer*.96);
+      return;
+    }
+    const maxLen=Math.max(token.length,queryToken.length);
+    const distance=foodEditDistance(queryToken,token);
+    const similarity=1-distance/maxLen;
+    best=Math.max(best,similarity);
+  });
+  return best;
+}
+
+function scoreFoodSearch(query,name){
+  const q=normalizeFoodSearchText(query);
+  const n=normalizeFoodSearchText(name);
+  if(!q||!n)return 0;
+
+  // Exact normalized match gets the highest score.
+  if(q===n)return 1000;
+
+  const qTokens=foodSearchTokens(q);
+  const nTokens=foodSearchTokens(n);
+  if(!qTokens.length||!nTokens.length)return 0;
+
+  // Exact phrase / normalized substring is still very strong.
+  let score=0;
+  if(n.includes(q))score+=650;
+  if(q.includes(n))score+=500;
+
+  // Token matching makes word order irrelevant:
+  // "chicken 150g breast" matches "chicken breast x 150 g".
+  const tokenScores=qTokens.map(t=>foodTokenSimilarity(t,nTokens));
+  const matched=tokenScores.filter(s=>s>=0.62).length;
+  const coverage=matched/qTokens.length;
+  const avg=tokenScores.reduce((a,b)=>a+b,0)/qTokens.length;
+
+  score += coverage*260;
+  score += avg*180;
+
+  // Reward matching the important words even when extra library words exist.
+  const exactTokenCount=qTokens.filter(t=>nTokens.includes(t)).length;
+  score += exactTokenCount*45;
+
+  // Penalize results where most of the query isn't represented.
+  if(coverage<0.5)return 0;
+
+  // Small preference for shorter/cleaner matches.
+  score -= Math.max(0,nTokens.length-qTokens.length)*3;
+
+  return score;
+}
+
 function renderFoodOptions(input){
   const menu=input.parentElement.querySelector('.food-reuse-menu');
-  const q=input.value.trim().toLowerCase();
-  if(!q){menu.classList.remove('open');menu.innerHTML='';return;}
-  const foods=[];const seen=new Set();
-  [...(state.foodLibrary||[]),...state.meals.flatMap(m=>Array.isArray(m.items)?m.items:[])].forEach(i=>{const key=(i.name||'').trim().toLowerCase();if(key&&key.includes(q)&&!seen.has(key)){seen.add(key);foods.push(i)}});
-  foods.sort((a,b)=>{const an=(a.name||'').toLowerCase(),bn=(b.name||'').toLowerCase();return an.localeCompare(bn)});
-  const matches=foods.slice(0,7).map(i=>`<button type="button" class="food-reuse-option" data-name="${esc(i.name)}" data-cal="${i.calories}" data-pro="${i.protein}" data-carb="${i.carbs}" data-fat="${i.fat}" onclick="reuseFood(this)"><strong>${esc(i.name)}</strong><small>${Math.round(i.calories)} kcal · ${Math.round(i.protein)}g P · ${Math.round(i.carbs)}g C · ${Math.round(i.fat)}g F</small></button>`).join('');
-  const ai=`<button type="button" class="food-reuse-option food-ai-option" onclick="estimateFoodWithChatGPT(this)"><strong>✨ Estimate with ChatGPT</strong><small>Use AI to estimate calories & macros for “${esc(input.value.trim())}”</small></button>`;
+  const rawQuery=input.value.trim();
+  if(!rawQuery){menu.classList.remove('open');menu.innerHTML='';return;}
+
+  const candidates=[];
+  const seen=new Set();
+
+  [...(state.foodLibrary||[]),...state.meals.flatMap(m=>Array.isArray(m.items)?m.items:[])]
+    .forEach(i=>{
+      const name=String(i.name||'').trim();
+      const key=normalizeFoodSearchText(name);
+      if(!key||seen.has(key))return;
+      seen.add(key);
+
+      const score=scoreFoodSearch(rawQuery,name);
+      if(score>0)candidates.push({...i,_searchScore:score});
+    });
+
+  candidates.sort((a,b)=>{
+    const scoreDiff=(b._searchScore||0)-(a._searchScore||0);
+    if(Math.abs(scoreDiff)>0.01)return scoreDiff;
+    return String(a.name||'').localeCompare(String(b.name||''));
+  });
+
+  const matches=candidates.slice(0,7).map(i=>`<button type="button" class="food-reuse-option" data-name="${esc(i.name)}" data-cal="${i.calories}" data-pro="${i.protein}" data-carb="${i.carbs}" data-fat="${i.fat}" onclick="reuseFood(this)"><strong>${esc(i.name)}</strong><small>${Math.round(i.calories)} kcal · ${Math.round(i.protein)}g P · ${Math.round(i.carbs)}g C · ${Math.round(i.fat)}g F</small></button>`).join('');
+
+  const ai=`<button type="button" class="food-reuse-option food-ai-option" onclick="estimateFoodWithChatGPT(this)"><strong>✨ Estimate with ChatGPT</strong><small>Use AI to estimate calories & macros for “${esc(rawQuery)}”</small></button>`;
   menu.innerHTML=matches+ai;
   menu.classList.add('open');
 }
